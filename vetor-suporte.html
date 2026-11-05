@@ -1,0 +1,1026 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<style>
+:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0;font:14px system-ui,-apple-system,sans-serif}
+img{max-width:100%}
+[hidden]{display:none!important}
+</style>
+<script>
+// O tema é escolhido no cabeçalho do site e chega aqui por mensagem, o que funciona também abrindo os arquivos direto do disco.
+(() => {
+  const root = document.documentElement;
+  const apply = t => { if (t === 'dark' || t === 'light') root.setAttribute('data-theme', t); else root.removeAttribute('data-theme'); };
+  try { apply(localStorage.getItem('svm-theme')); } catch (e) {}
+  addEventListener('message', e => { if (e.source === window.parent && e.data && 'svmTheme' in e.data) apply(e.data.svmTheme); });
+})();
+</script>
+<title>Classificador de Vetor Suporte</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=STIX+Two+Text:ital,wght@0,400;0,600;1,400;1,600&display=swap" media="print" onload="this.media=\'all\'">
+<style>
+/* Layout: o gráfico ocupa a tela como numa aula projetada, com o controle de C logo acima; à direita, a solução atual. */
+:root {
+  --paper: #fbfbfe;
+  --plot: #ffffff;
+  --ink: #15151f;
+  --muted: #5d5d72;
+  --rule: #d8d8e6;
+  --tint: #eeeef6;
+  --blue: #1596e4;
+  --blue-dot: #3fb0f2;
+  --pink: #c544b8;
+  --pink-dot: #d873cd;
+  --warn: #b23a0e;
+  --warn-tint: #fdeee6;
+  --slack: #d9480f;
+  --math: "STIX Two Text", "Latin Modern Roman", "Times New Roman", serif;
+  --ui: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #12131b; --plot: #171823; --ink: #eeeef6; --muted: #a2a2b8; --rule: #33354a; --tint: #23253a;
+    --blue: #4dbbf7; --blue-dot: #3a9fdc; --pink: #e679dc; --pink-dot: #c766be;
+    --warn: #ff9d73; --warn-tint: #3a2118; --slack: #ffa372; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #12131b; --plot: #171823; --ink: #eeeef6; --muted: #a2a2b8; --rule: #33354a; --tint: #23253a;
+  --blue: #4dbbf7; --blue-dot: #3a9fdc; --pink: #e679dc; --pink-dot: #c766be;
+  --warn: #ff9d73; --warn-tint: #3a2118; --slack: #ffa372; color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--paper); color: var(--ink);
+  font: 400 15px/1.45 var(--ui);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 14px 20px;
+}
+.app {
+  display: grid; gap: 12px 28px; max-width: 1320px; margin-inline: auto;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  grid-template-areas: "head head" "main side";
+}
+header { grid-area: head; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 16px; }
+h1 { font: 600 clamp(1.4rem, 2.4vw, 1.75rem)/1.15 var(--math); margin: 0; text-wrap: balance; }
+header p { margin: 0; color: var(--muted); }
+main { grid-area: main; min-width: 0; display: grid; gap: 8px; align-content: start; }
+aside { grid-area: side; min-width: 0; display: grid; gap: 16px; align-content: start; }
+
+/* Barra de ferramentas */
+.bar { display: flex; flex-wrap: wrap; gap: 8px 12px; justify-content: space-between; align-items: center; }
+.seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--rule); border-radius: 7px; overflow: hidden; background: var(--plot); }
+.seg button { border: 0; border-radius: 0; background: transparent; border-right: 1px solid var(--rule); }
+.seg button:last-child { border-right: 0; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--plot); }
+.acts { display: flex; flex-wrap: wrap; gap: 8px; }
+button {
+  font: 500 14px/1 var(--ui); color: var(--ink); background: var(--plot);
+  border: 1px solid var(--rule); border-radius: 7px; padding: 9px 12px; min-height: 36px; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 7px;
+}
+button:hover { background: var(--tint); }
+.seg button[aria-pressed="true"]:hover { background: var(--ink); }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.chip { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex: none; }
+.chip.b { background: var(--blue); }
+.chip.p { background: var(--pink); }
+
+/* Controle do orçamento */
+.budget { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.budget label { font: italic 400 1.35rem/1 var(--math); }
+#c-num {
+  width: 5.2em; font: 500 15px/1 var(--ui); font-variant-numeric: tabular-nums; color: var(--ink);
+  background: var(--plot); border: 1px solid var(--rule); border-radius: 7px; padding: 8px; min-height: 36px;
+}
+.sliderwrap { position: relative; flex: 1 1 220px; min-width: 0; padding-bottom: 7px; }
+#c-range { display: block; width: 100%; margin: 0; accent-color: var(--ink); height: 26px; }
+.floor { position: absolute; left: 8px; right: 8px; bottom: 0; height: 4px; border-radius: 2px; background: var(--rule); overflow: hidden; }
+.floor i { display: block; height: 100%; width: 0; background: var(--warn); }
+.cmax { color: var(--muted); font-size: 13.5px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+#c-usemin { border-color: var(--warn); color: var(--warn); }
+
+/* Narração do que está acontecendo no gráfico */
+.say {
+  min-height: 3.1em; display: flex; align-items: center; gap: 9px;
+  padding: 6px 12px; border-radius: 7px; background: var(--tint); line-height: 1.3;
+}
+.say.warn { background: var(--warn-tint); color: var(--warn); font-weight: 500; }
+.say .num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* Gráfico */
+svg#plot {
+  display: block; width: 100%; height: auto;
+  max-height: max(380px, calc(100dvh - 255px));
+  touch-action: pan-y; user-select: none; -webkit-user-select: none;
+}
+svg#plot[data-tool="add"] { touch-action: none; cursor: crosshair; }
+svg#plot[data-tool="remove"] .hit { cursor: pointer; }
+svg#plot[data-tool="move"] .hit { cursor: grab; }
+svg#plot.dragging, svg#plot.dragging .hit { cursor: grabbing !important; }
+.bgrect { fill: var(--plot); }
+.frame { fill: none; stroke: var(--ink); stroke-width: 2; }
+.tick { stroke: var(--ink); stroke-width: 1.5; }
+.ticklab { fill: var(--muted); font: 400 16px var(--ui); font-variant-numeric: tabular-nums; }
+.axlab { fill: var(--ink); font: italic 400 23px var(--math); }
+.dots-b { fill: var(--blue-dot); }
+.dots-p { fill: var(--pink-dot); }
+.band-b { fill: var(--blue); fill-opacity: .3; }
+.band-p { fill: var(--pink); fill-opacity: .3; }
+.hull { stroke-width: 2; stroke-linejoin: round; fill-opacity: .14; }
+.hull.b { fill: var(--blue); stroke: var(--blue); }
+.hull.p { fill: var(--pink); stroke: var(--pink); }
+.bridge { stroke: var(--ink); stroke-width: 1.6; stroke-dasharray: 2 5; stroke-linecap: round; }
+.bridge-end { fill: var(--plot); stroke: var(--ink); stroke-width: 1.6; }
+.hyper { stroke: var(--ink); stroke-width: 3.6; }
+.marg { stroke: var(--ink); stroke-width: 1.8; stroke-dasharray: 8 6; }
+.ghost { stroke: var(--muted); stroke-width: 2; opacity: .75; }
+.arrow { stroke: var(--ink); stroke-width: 2; }
+.arrowhead { fill: var(--ink); }
+.slackline { stroke: var(--slack); stroke-width: 2.6; stroke-linecap: round; }
+.mlab { fill: var(--ink); font: italic 600 22px var(--math); paint-order: stroke; stroke: var(--plot); stroke-width: 5px; stroke-linejoin: round; }
+.dot { stroke: var(--plot); stroke-width: 1.5; }
+.pt.b .dot { fill: var(--blue); }
+.pt.p .dot { fill: var(--pink); }
+.ring { fill: none; stroke: var(--ink); stroke-width: 2.4; }
+.cross { stroke: var(--plot); stroke-width: 2.4; stroke-linecap: round; pointer-events: none; }
+.pt:focus { outline: none; }
+.pt:focus-visible .dot { stroke: var(--ink); stroke-width: 3; }
+.hit { fill: transparent; touch-action: none; }
+
+/* Coluna da solução */
+.lab { font: 500 11.5px/1.2 var(--ui); letter-spacing: .07em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.lab .keep { text-transform: none; letter-spacing: .01em; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+section { min-width: 0; }
+.head-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
+.bigM { font: 400 2.8rem/1 var(--math); font-variant-numeric: tabular-nums lining-nums; }
+.bigM i { font-size: .62em; margin-right: .3em; }
+#v-eq { font-size: .72em; vertical-align: .06em; }
+.pill { font: 600 12.5px/1 var(--ui); padding: 6px 9px; border-radius: 99px; border: 1.5px solid currentColor; white-space: nowrap; margin-bottom: 5px; }
+.pill.ok { color: var(--ink); }
+.pill.no { color: var(--warn); background: var(--warn-tint); }
+.sub { color: var(--muted); font-size: 13.5px; margin: 6px 0 0; }
+.eq { font: 400 1.14rem/1.45 var(--math); font-variant-numeric: lining-nums tabular-nums; margin: 0; overflow-wrap: anywhere; }
+.math { font-family: var(--math); font-size: 1.07em; font-variant-numeric: lining-nums; }
+sub, sup { font-size: .68em; line-height: 0; }
+.spend { display: flex; gap: 1px; height: 14px; border-radius: 3px; overflow: hidden; background: var(--tint); }
+.spend span { display: block; min-width: 1px; }
+.spend .b { background: var(--blue); }
+.spend .p { background: var(--pink); }
+.counts { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 3px; }
+.counts li { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; align-items: center; gap: 7px; font-variant-numeric: tabular-nums; }
+.counts svg { display: block; }
+.counts small { color: var(--muted); font-size: 12.5px; }
+.svlist { list-style: none; margin: 0; padding: 0 4px 0 0; display: grid; gap: 3px; max-height: 8.4em; overflow-y: auto; }
+.svlist li { display: grid; grid-template-columns: 14px minmax(0, 1fr) auto; align-items: center; gap: 4px; font-variant-numeric: tabular-nums; }
+.svlist .cls { color: var(--muted); font-size: 13.5px; }
+.toggles { display: grid; gap: 2px; }
+.toggles label { display: grid; grid-template-columns: 18px 30px 1fr; gap: 8px; align-items: center; padding: 3px 0; cursor: pointer; }
+.toggles input { margin: 0; width: 16px; height: 16px; accent-color: var(--ink); }
+.toggles svg { display: block; }
+.note { color: var(--muted); font-size: 13.5px; margin: 6px 0 0; }
+.prob { margin: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 3px 10px; align-items: baseline; }
+.prob dt { color: var(--muted); font-size: 13.5px; }
+.prob dd { margin: 0; font-family: var(--math); font-size: 1.04rem; font-variant-numeric: lining-nums; }
+
+@media (max-width: 900px) {
+  .app { grid-template-columns: minmax(0, 1fr); grid-template-areas: "head" "main" "side"; }
+  svg#plot { max-height: none; }
+}
+@media (max-width: 480px) {
+  .seg button { padding: 9px 9px; font-size: 13px; }
+  .acts button { font-size: 13px; padding: 9px 10px; }
+  .say { font-size: 14px; }
+  .sliderwrap { flex-basis: 100%; order: 5; }
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header>
+    <h1>Classificador de vetor suporte</h1>
+    <p>Arraste os pontos e ajuste o orçamento <span class="math"><i>C</i></span>. A solução é recalculada a cada movimento.</p>
+  </header>
+
+  <main>
+    <div class="bar">
+      <div class="seg" role="group" aria-label="Ferramenta">
+        <button id="t-move" data-tool="move" aria-pressed="true">Mover</button>
+        <button id="t-addb" data-tool="add" data-cls="1" aria-pressed="false"><span class="chip b"></span>Adicionar</button>
+        <button id="t-addp" data-tool="add" data-cls="-1" aria-pressed="false"><span class="chip p"></span>Adicionar</button>
+        <button id="t-rem" data-tool="remove" aria-pressed="false">Remover</button>
+      </div>
+      <div class="acts">
+        <button id="random">Sortear dados</button>
+        <button id="reset">Restaurar figura</button>
+      </div>
+    </div>
+
+    <div class="budget">
+      <label for="c-num">C =</label>
+      <input id="c-num" type="number" min="0" step="0.1" inputmode="decimal" aria-label="Orçamento C">
+      <div class="sliderwrap">
+        <input id="c-range" type="range" min="0" max="1000" step="1" aria-label="Orçamento C">
+        <div class="floor" title="Trecho laranja: valores de C sem solução para estes dados"><i id="c-floor"></i></div>
+      </div>
+      <span class="cmax" id="c-max"></span>
+      <button id="c-zero">C = 0: margem máxima</button>
+      <button id="c-usemin" hidden></button>
+    </div>
+
+    <div id="say" class="say" role="status" aria-live="polite"></div>
+
+    <svg id="plot" viewBox="0 0 602 628" data-tool="move" aria-label="Gráfico de dispersão de X1 por X2 com o classificador de vetor suporte. Os pontos podem ser arrastados.">
+      <defs>
+        <pattern id="pat-b" width="10" height="10" patternUnits="userSpaceOnUse"><circle class="dots-b" cx="5" cy="5" r="1.45"></circle></pattern>
+        <pattern id="pat-p" width="10" height="10" patternUnits="userSpaceOnUse"><circle class="dots-p" cx="5" cy="5" r="1.45"></circle></pattern>
+        <clipPath id="clip"><rect id="cliprect"></rect></clipPath>
+        <marker id="head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="11" markerHeight="11" markerUnits="userSpaceOnUse" orient="auto-start-reverse">
+          <path class="arrowhead" d="M0 0.8 L10 5 L0 9.2 Z"></path>
+        </marker>
+      </defs>
+      <rect class="bgrect" id="bg"></rect>
+      <g clip-path="url(#clip)">
+        <g id="layer-regions"><path id="reg-b" fill="url(#pat-b)"></path><path id="reg-p" fill="url(#pat-p)"></path></g>
+        <g id="layer-bands"><path id="band-b" class="band-b"></path><path id="band-p" class="band-p"></path></g>
+        <g id="layer-hulls"><path id="hull-b" class="hull b"></path><path id="hull-p" class="hull p"></path></g>
+        <line id="ghost" class="ghost"></line>
+        <g id="layer-margins"><line id="marg-b" class="marg"></line><line id="marg-p" class="marg"></line></g>
+        <line id="hyper" class="hyper"></line>
+        <g id="layer-bridge"><line id="bridge" class="bridge"></line><circle id="be-a" class="bridge-end" r="4"></circle><circle id="be-b" class="bridge-end" r="4"></circle></g>
+        <g id="layer-slack"></g>
+        <g id="layer-arrows"></g>
+        <text id="mlab" class="mlab" text-anchor="middle" dominant-baseline="central">M</text>
+      </g>
+      <rect class="frame" id="frame"></rect>
+      <g id="axes"></g>
+      <g id="layer-points"></g>
+    </svg>
+  </main>
+
+  <aside>
+    <section>
+      <div class="head-row">
+        <div>
+          <p class="lab">Margem</p>
+          <div class="bigM"><i>M</i><span id="v-eq">=</span> <span id="v-m"></span></div>
+        </div>
+        <span id="pill" class="pill ok"></span>
+      </div>
+      <p class="sub" id="v-n"></p>
+    </section>
+
+    <section id="usage">
+      <p class="lab" id="v-spendlab"></p>
+      <div class="spend" id="v-spend" aria-hidden="true"></div>
+      <ul class="counts">
+        <li><svg width="22" height="18" aria-hidden="true"><circle cx="11" cy="9" r="7.5" fill="none" stroke="currentColor" stroke-width="1.6"></circle><circle cx="11" cy="9" r="4" fill="var(--muted)"></circle></svg><span>Sobre a margem <small>ϵ = 0</small></span><b id="v-c1"></b></li>
+        <li><svg width="22" height="18" aria-hidden="true"><line x1="11" y1="9" x2="22" y2="9" stroke="var(--slack)" stroke-width="2.4"></line><circle cx="11" cy="9" r="7.5" fill="var(--paper)" stroke="currentColor" stroke-width="1.6"></circle><circle cx="11" cy="9" r="4" fill="var(--muted)"></circle></svg><span>Dentro da margem <small>0 &lt; ϵ ≤ 1</small></span><b id="v-c2"></b></li>
+        <li><svg width="22" height="18" aria-hidden="true"><circle cx="11" cy="9" r="7.5" fill="none" stroke="currentColor" stroke-width="1.6"></circle><circle cx="11" cy="9" r="5" fill="var(--muted)"></circle><path d="M8.6 6.6 L13.4 11.4 M13.4 6.6 L8.6 11.4" stroke="var(--paper)" stroke-width="1.5" stroke-linecap="round"></path></svg><span>Lado errado <small>ϵ &gt; 1</small></span><b id="v-c3"></b></li>
+      </ul>
+    </section>
+
+    <section>
+      <p class="lab">Hiperplano</p>
+      <p class="eq" id="v-eqn"></p>
+      <p class="note" id="v-cost"></p>
+    </section>
+
+    <section id="svbox">
+      <p class="lab" id="v-svlab"></p>
+      <ul class="svlist" id="v-sv" tabindex="0" aria-label="Lista de vetores suporte"></ul>
+    </section>
+
+    <section>
+      <p class="lab">Exibir</p>
+      <div class="toggles">
+        <label for="o-margin"><input type="checkbox" id="o-margin" checked>
+          <svg width="30" height="14" aria-hidden="true"><line x1="0" y1="7" x2="30" y2="7" stroke="currentColor" stroke-width="1.8" stroke-dasharray="6 4"></line></svg>Margem</label>
+        <label for="o-sv"><input type="checkbox" id="o-sv" checked>
+          <svg width="30" height="16" aria-hidden="true"><circle cx="15" cy="8" r="6.5" fill="none" stroke="currentColor" stroke-width="1.6"></circle><circle cx="15" cy="8" r="3.5" fill="var(--blue)"></circle></svg>Vetores suporte</label>
+        <label for="o-slack"><input type="checkbox" id="o-slack" checked>
+          <svg width="30" height="14" aria-hidden="true"><line x1="3" y1="7" x2="27" y2="7" stroke="var(--slack)" stroke-width="2.6" stroke-linecap="round"></line></svg><span>Folgas <span class="math"><i>ϵ</i></span></span></label>
+        <label for="o-reg"><input type="checkbox" id="o-reg" checked>
+          <svg width="30" height="14" aria-hidden="true"><g fill="var(--blue-dot)"><circle cx="3" cy="3" r="1.3"></circle><circle cx="9" cy="3" r="1.3"></circle><circle cx="3" cy="11" r="1.3"></circle><circle cx="9" cy="11" r="1.3"></circle></g><g fill="var(--pink-dot)"><circle cx="21" cy="3" r="1.3"></circle><circle cx="27" cy="3" r="1.3"></circle><circle cx="21" cy="11" r="1.3"></circle><circle cx="27" cy="11" r="1.3"></circle></g></svg>Regiões de decisão</label>
+        <label for="o-hull"><input type="checkbox" id="o-hull">
+          <svg width="30" height="16" aria-hidden="true"><path d="M3 13 L9 2 L26 5 L22 14 Z" fill="var(--blue)" fill-opacity=".18" stroke="var(--blue)" stroke-width="1.5"></path></svg>Envoltórias convexas</label>
+      </div>
+      <p class="note" id="hullnote" hidden>Com <span class="math"><i>C</i> = 0</span>, o hiperplano é a mediatriz do menor segmento entre as envoltórias. Com <span class="math"><i>C</i> &gt; 0</span>, essa relação deixa de valer.</p>
+    </section>
+
+    <section>
+      <p class="lab">Problema de otimização, eqs. (9.12)–(9.15)</p>
+      <dl class="prob">
+        <dt>maximizar</dt><dd><i>M</i></dd>
+        <dt>sujeito a</dt><dd>β<sub>1</sub><sup>2</sup> + β<sub>2</sub><sup>2</sup> = 1</dd>
+        <dt></dt><dd><i>y<sub>i</sub></i>(β<sub>0</sub> + β<sub>1</sub><i>x</i><sub><i>i</i>1</sub> + β<sub>2</sub><i>x</i><sub><i>i</i>2</sub>) ≥ <i>M</i>(1 − <i>ϵ<sub>i</sub></i>)</dd>
+        <dt></dt><dd><i>ϵ<sub>i</sub></i> ≥ 0, &nbsp;Σ<i>ϵ<sub>i</sub></i> ≤ <i>C</i></dd>
+      </dl>
+      <p class="note">Rótulos: <span class="math"><i>y</i> = +1</span> para azul e <span class="math"><i>y</i> = −1</span> para roxo. Com <span class="math"><i>C</i> = 0</span>, volta-se ao classificador de margem máxima. Dados não separáveis exigem <span class="math"><i>C</i> ≥ 2</span>.</p>
+    </section>
+  </aside>
+</div>
+
+<script>
+/*SOLVER-START*/
+// Margem rígida (C = 0): pontos mais próximos entre as envoltórias convexas.
+// Margem suave (C > 0): min ½‖w‖² sujeito a y(w·x + b) ≥ 1 − ϵ, ϵ ≥ 0, Σϵ ≤ C,
+// resolvido por pontos interiores (Mehrotra). Com β = w/‖w‖, M = 1/‖w‖ é a forma com orçamento.
+const Solver = (() => {
+  const EPS = 1e-9;
+  const cross = (o, a, b) => (a[0]-o[0])*(b[1]-o[1]) - (a[1]-o[1])*(b[0]-o[0]);
+
+  function hull(pts) {
+    const p = [...pts].sort((a, b) => a[0]-b[0] || a[1]-b[1])
+      .filter((q, i, arr) => i === 0 || q[0] !== arr[i-1][0] || q[1] !== arr[i-1][1]);
+    if (p.length < 3) return p;
+    const half = list => {
+      const h = [];
+      for (const q of list) {
+        while (h.length >= 2 && cross(h[h.length-2], h[h.length-1], q) <= 0) h.pop();
+        h.push(q);
+      }
+      h.pop();
+      return h;
+    };
+    const h = [...half(p), ...half([...p].reverse())];
+    return h.length ? h : [p[0]];
+  }
+  const edges = h => h.length === 1 ? [[h[0], h[0]]]
+    : h.length === 2 ? [[h[0], h[1]]]
+    : h.map((a, i) => [a, h[(i+1) % h.length]]);
+  function nearestOnSeg(q, a, b) {
+    const dx = b[0]-a[0], dy = b[1]-a[1], L = dx*dx + dy*dy;
+    const t = L === 0 ? 0 : Math.max(0, Math.min(1, ((q[0]-a[0])*dx + (q[1]-a[1])*dy) / L));
+    return [a[0] + t*dx, a[1] + t*dy];
+  }
+  function segsCross(a, b, c, d) {
+    const d1 = cross(c, d, a), d2 = cross(c, d, b), d3 = cross(a, b, c), d4 = cross(a, b, d);
+    return ((d1 > 0) !== (d2 > 0)) && ((d3 > 0) !== (d4 > 0)) && d1 !== 0 && d2 !== 0 && d3 !== 0 && d4 !== 0;
+  }
+  function inside(q, h) {
+    if (h.length < 3) return false;
+    return h.every((a, i) => cross(a, h[(i+1) % h.length], q) >= 0);
+  }
+  function closest(A, B) {
+    const ea = edges(A), eb = edges(B);
+    if (inside(A[0], B) || inside(B[0], A)) return null;
+    for (const [a, b] of ea) for (const [c, d] of eb) if (segsCross(a, b, c, d)) return null;
+    let best = null, bd = Infinity;
+    const test = (u, v) => { const d = Math.hypot(u[0]-v[0], u[1]-v[1]); if (d < bd) { bd = d; best = [u, v]; } };
+    for (const a of A) for (const [c, d] of eb) test(a, nearestOnSeg(a, c, d));
+    for (const b of B) for (const [c, d] of ea) test(nearestOnSeg(b, c, d), b);
+    return bd < EPS ? null : best;
+  }
+
+  // Pontos interiores para as variáveis (w1, w2, b, ϵ1..ϵn).
+  // C === null: PL  min Σϵ  (acha o menor orçamento viável).
+  // C numérico: PQ  min ½‖w‖²  com Σϵ ≤ C.
+  function ipm(points, C) {
+    const n = points.length, N = n + 3, budget = C !== null, m = 2*n + (budget ? 1 : 0);
+    const xs = points.map(p => [p.c*p.x, p.c*p.y, p.c]);
+    const x = new Float64Array(N), s = new Float64Array(m), z = new Float64Array(m), d = new Float64Array(m);
+    for (let i = 0; i < n; i++) d[i] = 1;
+    if (budget) d[2*n] = -C;
+    const mulA = (v, out) => {
+      for (let i = 0; i < n; i++) {
+        out[i] = xs[i][0]*v[0] + xs[i][1]*v[1] + xs[i][2]*v[2] + v[3+i];
+        out[n+i] = v[3+i];
+      }
+      if (budget) { let t = 0; for (let i = 0; i < n; i++) t -= v[3+i]; out[2*n] = t; }
+    };
+    const mulAT = (u, out) => {
+      out.fill(0);
+      for (let i = 0; i < n; i++) {
+        for (let k = 0; k < 3; k++) out[k] += xs[i][k]*u[i];
+        out[3+i] += u[i] + u[n+i] - (budget ? u[2*n] : 0);
+      }
+    };
+    const init = budget ? Math.max(C / n, 1e-3) : 1;
+    for (let i = 0; i < n; i++) x[3+i] = init;
+    const Ax = new Float64Array(m), rp = new Float64Array(m), rd = new Float64Array(N), Atz = new Float64Array(N);
+    mulA(x, Ax);
+    for (let j = 0; j < m; j++) { s[j] = Math.max(Ax[j] - d[j], 1); z[j] = 1; }
+    const H = Array.from({ length: N }, () => new Float64Array(N));
+    const L = Array.from({ length: N }, () => new Float64Array(N));
+    const rhs = new Float64Array(N), tmp = new Float64Array(m), dx = new Float64Array(N);
+    const ds = new Float64Array(m), dz = new Float64Array(m), rc = new Float64Array(m), Adx = new Float64Array(m);
+
+    function factor() {
+      for (let reg = 1e-11; reg < 1; reg *= 100) {
+        let ok = true;
+        for (let i = 0; i < N && ok; i++) {
+          for (let j = 0; j <= i; j++) {
+            let v = H[i][j] + (i === j ? reg : 0);
+            for (let k = 0; k < j; k++) v -= L[i][k]*L[j][k];
+            if (i === j) { if (v <= 0) { ok = false; break; } L[i][i] = Math.sqrt(v); }
+            else L[i][j] = v / L[j][j];
+          }
+        }
+        if (ok) return true;
+      }
+      return false;
+    }
+    function solveL(b, out) {
+      for (let i = 0; i < N; i++) { let v = b[i]; for (let k = 0; k < i; k++) v -= L[i][k]*out[k]; out[i] = v / L[i][i]; }
+      for (let i = N-1; i >= 0; i--) { let v = out[i]; for (let k = i+1; k < N; k++) v -= L[k][i]*out[k]; out[i] = v / L[i][i]; }
+    }
+    function direction() {
+      for (let j = 0; j < m; j++) tmp[j] = rc[j]/s[j] + z[j]/s[j]*rp[j];
+      mulAT(tmp, Atz);
+      for (let i = 0; i < N; i++) rhs[i] = -rd[i] - Atz[i];
+      solveL(rhs, dx);
+      mulA(dx, Adx);
+      for (let j = 0; j < m; j++) { ds[j] = Adx[j] + rp[j]; dz[j] = (-rc[j] - z[j]*ds[j]) / s[j]; }
+    }
+    const maxStep = () => {
+      let a = 1;
+      for (let j = 0; j < m; j++) {
+        if (ds[j] < 0) a = Math.min(a, -s[j]/ds[j]);
+        if (dz[j] < 0) a = Math.min(a, -z[j]/dz[j]);
+      }
+      return a;
+    };
+
+    let converged = false, iters = 0;
+    for (iters = 0; iters < 120; iters++) {
+      mulA(x, Ax);
+      mulAT(z, Atz);
+      let mu = 0, rpn = 0, rdn = 0;
+      for (let j = 0; j < m; j++) { rp[j] = Ax[j] - s[j] - d[j]; rpn = Math.max(rpn, Math.abs(rp[j])); mu += s[j]*z[j]; }
+      mu /= m;
+      for (let i = 0; i < N; i++) {
+        const q = budget ? (i < 2 ? x[i] : 0) : (i >= 3 ? 1 : 0);
+        rd[i] = q - Atz[i];
+        rdn = Math.max(rdn, Math.abs(rd[i]));
+      }
+      if (rpn < 1e-8 && rdn < 1e-8 && mu < 1e-10) { converged = true; break; }
+
+      for (let i = 0; i < N; i++) H[i].fill(0);
+      if (budget) { H[0][0] = 1; H[1][1] = 1; }
+      for (let i = 0; i < n; i++) {
+        const D = z[i]/s[i], r = xs[i], q = 3+i;
+        for (let a = 0; a < 3; a++) { for (let b = 0; b <= a; b++) H[a][b] += D*r[a]*r[b]; H[q][a] += D*r[a]; }
+        H[q][q] += D + z[n+i]/s[n+i];
+      }
+      if (budget) {
+        const Db = z[2*n]/s[2*n];
+        for (let i = 3; i < N; i++) for (let j = 3; j <= i; j++) H[i][j] += Db;
+      }
+      if (!factor()) break;
+
+      for (let j = 0; j < m; j++) rc[j] = s[j]*z[j];
+      direction();
+      const ap = maxStep();
+      let muAff = 0;
+      for (let j = 0; j < m; j++) muAff += (s[j]+ap*ds[j])*(z[j]+ap*dz[j]);
+      muAff /= m;
+      const sigma = Math.pow(muAff/mu, 3);
+      for (let j = 0; j < m; j++) rc[j] = s[j]*z[j] + ds[j]*dz[j] - sigma*mu;
+      direction();
+      const a = Math.min(1, 0.995*maxStep());
+      for (let i = 0; i < N; i++) x[i] += a*dx[i];
+      for (let j = 0; j < m; j++) { s[j] += a*ds[j]; z[j] += a*dz[j]; }
+    }
+    return { x, z, s, converged, iters, cost: budget ? z[2*n] : null };
+  }
+
+  // Dado w, escolhe b. Quando há um intervalo de valores ótimos, usa o ponto médio.
+  function polishB(points, w1, w2) {
+    const kinks = points.map(p => p.c - (w1*p.x + w2*p.y));
+    const hinge = b => points.reduce((t, p) => t + Math.max(0, 1 - p.c*(w1*p.x + w2*p.y + b)), 0);
+    let best = Infinity;
+    const vals = kinks.map(k => { const h = hinge(k); if (h < best) best = h; return h; });
+    let lo = Infinity, hi = -Infinity;
+    kinks.forEach((k, i) => { if (vals[i] <= best + 1e-9) { lo = Math.min(lo, k); hi = Math.max(hi, k); } });
+    return (lo + hi) / 2;
+  }
+
+  function solve(points, C) {
+    const P = points.filter(p => p.c === 1).map(p => [p.x, p.y]);
+    const Q = points.filter(p => p.c === -1).map(p => [p.x, p.y]);
+    const hullP = hull(P), hullN = hull(Q);
+    const pair = closest(hullP, hullN);
+    const separable = !!pair;
+    const Cmax = 2*Math.min(P.length, Q.length);
+    let Cmin = 0;
+    if (!separable) {
+      const lp = ipm(points, null);
+      Cmin = 0;
+      for (let i = 0; i < points.length; i++) Cmin += Math.max(lp.x[3+i], 0);
+      Cmin = Math.max(Cmin, 2);
+      Cmin = Math.min(Cmin, Cmax);
+    }
+    const base = { separable, hullP, hullN, Cmin, Cmax };
+    if (C < Cmin - 1e-7) return { ...base, kind: 'infeasible' };
+    if (C >= Cmax - 1e-9) return { ...base, kind: 'flat' };
+
+    let w1, w2, b, cost = null, hard = false, a = null, bb = null;
+    if (separable && C < 1e-6) {
+      hard = true;
+      a = pair[0]; bb = pair[1];
+      const d = Math.hypot(a[0]-bb[0], a[1]-bb[1]);
+      const u = (a[0]-bb[0])/d, v = (a[1]-bb[1])/d;
+      w1 = u*2/d; w2 = v*2/d;
+      b = -(w1*(a[0]+bb[0])/2 + w2*(a[1]+bb[1])/2);
+    } else {
+      const sol = ipm(points, Math.max(C, Cmin + 1e-7));
+      w1 = sol.x[0]; w2 = sol.x[1]; cost = sol.cost;
+      if (Math.hypot(w1, w2) < 1e-8) return { ...base, kind: 'flat' };
+      b = polishB(points, w1, w2);
+      if (!sol.converged) base.unconverged = true;
+    }
+    const nw = Math.hypot(w1, w2), M = 1/nw;
+    const eps = points.map(p => {
+      const v = 1 - p.c*(w1*p.x + w2*p.y + b);
+      return v > 1e-5 ? v : 0;
+    });
+    const margin = [], insideM = [], wrong = [], sv = [];
+    points.forEach((p, i) => {
+      const v = p.c*(w1*p.x + w2*p.y + b);
+      if (Math.abs(v - 1) <= 1e-5) { margin.push(i); sv.push(i); }
+      else if (v < 1) { sv.push(i); (v < 0 ? wrong : insideM).push(i); }
+    });
+    return {
+      ...base, kind: 'ok', hard, M, cost, eps, sv, margin, inside: insideM, wrong,
+      sumEps: eps.reduce((t, e) => t + e, 0),
+      b0: b/nw, b1: w1/nw, b2: w2/nw, a, b: bb,
+    };
+  }
+  return { solve, hull };
+})();
+/*SOLVER-END*/
+
+(() => {
+  const FIG_BLUE = [[-0.25,3.55],[-0.67,2.89],[-0.58,2.89],[0.36,2.89],[0.89,2.03],[-1.53,1.82],[-0.02,1.66],[0.03,1.66],[-1.15,1.4],[-0.65,1.14],[-0.22,0.37],[-0.44,-0.17]];
+  const FIG_PINK = [[1.94,0.69],[1.65,0.49],[1.41,0.08],[2.02,0.01],[0.49,-0.17],[3.17,-0.21],[0.64,-0.74],[1.17,-0.86],[2.62,-0.93],[1.06,-0.97],[3.32,-1.09],[0.99,-1.56]];
+  const figure = () => [
+    ...FIG_BLUE.map(([x, y]) => ({ x, y, c: 1 })),
+    ...FIG_PINK.map(([x, y]) => ({ x, y, c: -1 })),
+  ];
+
+  // Mesma escala nos dois eixos: é o que faz a seta da margem parecer perpendicular ao hiperplano.
+  const X0 = -1.73, X1 = 3.52, Y0 = -1.77, Y1 = 3.75, S = 100, ML = 54, MT = 8;
+  const px = x => ML + (x - X0) * S;
+  const py = y => MT + (Y1 - y) * S;
+  const PW = (X1 - X0) * S, PH = (Y1 - Y0) * S;
+  const $ = id => document.getElementById(id);
+  const NS = 'http://www.w3.org/2000/svg';
+  const el = (tag, cls, parent) => { const e = document.createElementNS(NS, tag); if (cls) e.setAttribute('class', cls); if (parent) parent.appendChild(e); return e; };
+  const attrs = (e, o) => { for (const k in o) e.setAttribute(k, o[k]); };
+  const svg = $('plot');
+
+  const state = {
+    points: figure(), C: 3, tool: 'move', addClass: 1, sel: -1, drag: -1, ghost: null, sol: null, flash: '',
+    show: { margin: true, sv: true, slack: true, reg: true, hull: false },
+  };
+
+  /* ---------- formatação em pt-BR ---------- */
+  const num = (v, d = 2) => {
+    const s = Math.abs(v).toLocaleString('pt-BR', { minimumFractionDigits: d, maximumFractionDigits: d });
+    return (v < 0 && Number(Math.abs(v).toFixed(d)) !== 0 ? '−' : '') + s;
+  };
+  const sig = v => v >= 100 ? Math.round(v).toLocaleString('pt-BR') : v >= 1 ? num(v, 2) : v.toLocaleString('pt-BR', { maximumSignificantDigits: 3 });
+  const coord = p => `(${num(p.x)}; ${num(p.y)})`;
+  const className = c => c === 1 ? 'azul' : 'roxo';
+  const roundUp = v => Math.ceil((v + 1e-6) * 100) / 100;
+
+  /* ---------- eixos ---------- */
+  function drawAxes() {
+    for (const id of ['bg', 'frame', 'cliprect']) attrs($(id), { x: ML, y: MT, width: PW, height: PH });
+    const g = $('axes');
+    for (let v = -1; v <= 3; v++) {
+      attrs(el('line', 'tick', g), { x1: px(v), x2: px(v), y1: MT + PH, y2: MT + PH + 7 });
+      const t = el('text', 'ticklab', g);
+      attrs(t, { x: px(v), y: MT + PH + 25, 'text-anchor': 'middle' });
+      t.textContent = String(v).replace('-', '−');
+      attrs(el('line', 'tick', g), { y1: py(v), y2: py(v), x1: ML - 7, x2: ML });
+      const u = el('text', 'ticklab', g);
+      attrs(u, { x: ML - 12, y: py(v) + 5.5, 'text-anchor': 'end' });
+      u.textContent = String(v).replace('-', '−');
+    }
+    const axisLabel = (x, y, n, rot) => {
+      const t = el('text', 'axlab', g);
+      attrs(t, { x, y, 'text-anchor': 'middle' });
+      if (rot) t.setAttribute('transform', `rotate(-90 ${x} ${y})`);
+      t.textContent = 'X';
+      const s = el('tspan', '', t);
+      attrs(s, { dy: 6, 'font-size': 15, 'font-style': 'normal' });
+      s.textContent = n;
+    };
+    axisLabel(ML + PW/2, MT + PH + 56, '1');
+    axisLabel(14, MT + PH/2, '2', true);
+  }
+
+  /* ---------- geometria auxiliar ---------- */
+  const RECT = [[X0,Y0],[X1,Y0],[X1,Y1],[X0,Y1]];
+  function clip(poly, a, b, c) {
+    const out = [];
+    poly.forEach((p, i) => {
+      const q = poly[(i+1) % poly.length];
+      const fp = a*p[0] + b*p[1] + c, fq = a*q[0] + b*q[1] + c;
+      if (fp >= 0) out.push(p);
+      if ((fp >= 0) !== (fq >= 0)) { const t = fp / (fp - fq); out.push([p[0] + t*(q[0]-p[0]), p[1] + t*(q[1]-p[1])]); }
+    });
+    return out;
+  }
+  const pathOf = poly => poly.length ? 'M' + poly.map(p => `${px(p[0]).toFixed(2)} ${py(p[1]).toFixed(2)}`).join('L') + 'Z' : '';
+  function setLine(e, s, offset) {
+    const cx = (offset - s.b0) * s.b1, cy = (offset - s.b0) * s.b2, dx = -s.b2 * 60, dy = s.b1 * 60;
+    attrs(e, { x1: px(cx-dx), y1: py(cy-dy), x2: px(cx+dx), y2: py(cy+dy) });
+  }
+
+  /* ---------- pontos ---------- */
+  const coarse = window.matchMedia && matchMedia('(pointer: coarse)').matches;
+  let nodes = [];
+  function buildPoints() {
+    const g = $('layer-points');
+    g.textContent = '';
+    nodes = state.points.map((p, i) => {
+      const n = el('g', 'pt ' + (p.c === 1 ? 'b' : 'p'), g);
+      attrs(n, { tabindex: 0, role: 'button', 'data-i': i });
+      const ring = el('circle', 'ring', n); ring.setAttribute('r', 12.5);
+      const dot = el('circle', 'dot', n);
+      const cross = el('path', 'cross', n);
+      const hit = el('circle', 'hit', n); hit.setAttribute('r', coarse ? 30 : 19);
+      return { n, ring, dot, cross, hit };
+    });
+  }
+
+  /* ---------- desenho ---------- */
+  function render(opts = {}) {
+    const pts = state.points;
+    const nb = pts.filter(p => p.c === 1).length, np = pts.length - nb;
+    state.C = Math.min(state.C, 2*Math.min(nb, np));
+    const s = state.sol = Solver.solve(pts, state.C);
+    const ok = s.kind === 'ok';
+    const on = (id, v) => { $(id).style.display = v ? '' : 'none'; };
+
+    on('layer-regions', ok && state.show.reg);
+    on('layer-bands', ok && state.show.margin);
+    on('layer-margins', ok && state.show.margin);
+    on('hyper', ok);
+    on('layer-bridge', ok && s.hard && state.show.hull);
+    if (ok) {
+      const { b0, b1, b2, M } = s;
+      $('reg-b').setAttribute('d', pathOf(clip(RECT, b1, b2, b0)));
+      $('reg-p').setAttribute('d', pathOf(clip(RECT, -b1, -b2, -b0)));
+      $('band-b').setAttribute('d', pathOf(clip(clip(RECT, b1, b2, b0), -b1, -b2, -b0 + M)));
+      $('band-p').setAttribute('d', pathOf(clip(clip(RECT, -b1, -b2, -b0), b1, b2, b0 + M)));
+      setLine($('hyper'), s, 0);
+      setLine($('marg-b'), s, M);
+      setLine($('marg-p'), s, -M);
+      if (s.hard) {
+        attrs($('bridge'), { x1: px(s.a[0]), y1: py(s.a[1]), x2: px(s.b[0]), y2: py(s.b[1]) });
+        attrs($('be-a'), { cx: px(s.a[0]), cy: py(s.a[1]) });
+        attrs($('be-b'), { cx: px(s.b[0]), cy: py(s.b[1]) });
+      }
+    }
+
+    // Sem solução, as envoltórias aparecem sozinhas: elas mostram o motivo.
+    const showHull = state.show.hull || s.kind === 'infeasible';
+    on('layer-hulls', showHull);
+    if (showHull) { $('hull-b').setAttribute('d', pathOf(s.hullP)); $('hull-p').setAttribute('d', pathOf(s.hullN)); }
+
+    // Hiperplano antes do arraste
+    const g = state.ghost;
+    const moved = g && (!ok || Math.abs(g.b1 - s.b1) + Math.abs(g.b2 - s.b2) + Math.abs(g.b0 - s.b0) > 1e-5);
+    on('ghost', !!moved);
+    if (moved) setLine($('ghost'), g, 0);
+    state.ghostShown = !!moved;
+
+    // Folgas: de cada ponto que viola a margem até a margem da sua classe
+    const slack = $('layer-slack');
+    slack.textContent = '';
+    if (ok && state.show.slack) {
+      pts.forEach((p, i) => {
+        if (s.eps[i] <= 0) return;
+        const len = s.M * s.eps[i];
+        attrs(el('line', 'slackline', slack), {
+          x1: px(p.x), y1: py(p.y),
+          x2: px(p.x + p.c*s.b1*len), y2: py(p.y + p.c*s.b2*len),
+        });
+      });
+    }
+
+    // Setas de comprimento M
+    const arrows = $('layer-arrows');
+    arrows.textContent = '';
+    const showArrows = ok && state.show.margin && state.show.sv && s.M*S >= 8;
+    on('mlab', false);
+    if (showArrows) {
+      let best = null, bestD = Infinity;
+      const drawArrow = (x0, y0, nx, ny, skip) => {
+        const fx = x0 - nx*s.M, fy = y0 - ny*s.M;
+        const off = skip / S;
+        attrs(el('line', 'arrow', arrows), {
+          x1: px(x0 - nx*off), y1: py(y0 - ny*off), x2: px(fx), y2: py(fy),
+          'marker-start': 'url(#head)', 'marker-end': 'url(#head)',
+        });
+        const mx = (x0 + fx)/2, my = (y0 + fy)/2, d = Math.hypot(mx - (X0+X1)/2, my - (Y0+Y1)/2);
+        if (d < bestD) { bestD = d; best = { mx, my, nx, ny }; }
+      };
+      for (const i of s.margin) {
+        const p = pts[i];
+        drawArrow(p.x, p.y, s.b1*p.c, s.b2*p.c, Math.min(10.5, s.M*S*.35));
+      }
+      if (!s.margin.length) {
+        // Nenhum ponto exatamente sobre a margem: mostra M a partir do centro do gráfico.
+        const cx = (X0+X1)/2, cy = (Y0+Y1)/2, f = s.b0 + s.b1*cx + s.b2*cy;
+        const fx = cx - s.b1*f, fy = cy - s.b2*f;
+        drawArrow(fx + s.b1*s.M, fy + s.b2*s.M, s.b1, s.b2, 0);
+      }
+      if (best) {
+        const tx = -best.ny, ty = best.nx, k = 28 / S;
+        const inP = (x, y) => x > X0 + .12 && x < X1 - .12 && y > Y0 + .12 && y < Y1 - .12;
+        let lx = best.mx + tx*k, ly = best.my + ty*k;
+        if (!inP(lx, ly)) { lx = best.mx - tx*k; ly = best.my - ty*k; }
+        if (inP(lx, ly)) { attrs($('mlab'), { x: px(lx), y: py(ly) }); on('mlab', true); }
+      }
+    }
+
+    // Pontos
+    const svset = new Set(ok ? s.sv : []), wrong = new Set(ok ? s.wrong : []);
+    pts.forEach((p, i) => {
+      const nd = nodes[i], x = px(p.x), y = py(p.y), active = i === state.drag || i === state.sel;
+      attrs(nd.dot, { cx: x, cy: y, r: active ? 9 : 7.5 });
+      attrs(nd.ring, { cx: x, cy: y });
+      attrs(nd.hit, { cx: x, cy: y });
+      nd.ring.style.display = svset.has(i) && state.show.sv ? '' : 'none';
+      if (wrong.has(i)) { const k = 3.8; nd.cross.setAttribute('d', `M${x-k} ${y-k}L${x+k} ${y+k}M${x+k} ${y-k}L${x-k} ${y+k}`); nd.cross.style.display = ''; }
+      else nd.cross.style.display = 'none';
+      nd.n.setAttribute('aria-label', `Ponto ${className(p.c)} em ${coord(p)}${svset.has(i) ? ', vetor suporte' : ''}`);
+    });
+
+    renderControl(opts);
+    renderPanel(nb, np);
+  }
+
+  /* ---------- controle de C ---------- */
+  const toT = (C, Cmax) => Cmax > 0 ? Math.sqrt(Math.min(C, Cmax) / Cmax) : 0;
+  function renderControl(opts) {
+    const s = state.sol;
+    if (!opts.fromSlider) $('c-range').value = Math.round(toT(state.C, s.Cmax) * 1000);
+    if (document.activeElement !== $('c-num')) $('c-num').value = state.C.toFixed(2);
+    $('c-num').max = s.Cmax;
+    $('c-range').setAttribute('aria-valuetext', `C = ${num(state.C)}`);
+    $('c-max').textContent = `máx. ${s.Cmax}`;
+    $('c-floor').style.width = (toT(s.Cmin, s.Cmax) * 100).toFixed(2) + '%';
+    const btn = $('c-usemin');
+    btn.hidden = s.kind !== 'infeasible' || s.Cmin >= s.Cmax;
+    if (!btn.hidden) btn.textContent = `Usar C = ${num(roundUp(s.Cmin))}`;
+    $('c-zero').hidden = !btn.hidden;
+  }
+
+  function renderPanel(nb, np) {
+    const s = state.sol, pts = state.points, ok = s.kind === 'ok', C = state.C;
+    $('v-m').textContent = ok ? num(s.M, 3) : s.kind === 'flat' ? '∞' : 'não existe';
+    $('v-eq').hidden = s.kind === 'infeasible';
+    $('v-m').style.fontSize = s.kind === 'infeasible' ? '.55em' : '';
+    $('pill').textContent = s.separable ? 'Separável' : 'Não separável';
+    $('pill').className = 'pill ' + (s.separable ? 'ok' : 'no');
+    $('v-n').textContent = `n = ${pts.length}: ${nb} ${nb === 1 ? 'azul' : 'azuis'}, ${np} ${np === 1 ? 'roxo' : 'roxos'}`;
+
+    $('usage').hidden = !ok;
+    $('svbox').hidden = !ok;
+    if (ok) {
+      $('v-spendlab').innerHTML = C > 0 ? `Orçamento gasto: <span class="keep">Σϵ = ${num(s.sumEps)} de C = ${num(C)}</span>` : 'Orçamento: nenhuma violação permitida';
+      const order = pts.map((p, i) => i).filter(i => s.eps[i] > 0).sort((a, b) => s.eps[b] - s.eps[a]);
+      $('v-spend').innerHTML = order.map(i => `<span class="${pts[i].c === 1 ? 'b' : 'p'}" style="width:${(s.eps[i]/Math.max(C, s.sumEps)*100).toFixed(2)}%" title="${className(pts[i].c)} ${coord(pts[i])}: ϵ = ${num(s.eps[i], 3)}"></span>`).join('');
+      $('v-c1').textContent = s.margin.length;
+      $('v-c2').textContent = s.inside.length;
+      $('v-c3').textContent = s.wrong.length;
+
+      const term = (v, sub) => `${v < 0 ? ' − ' : ' + '}${num(Math.abs(v), 3)} <i>X</i><sub>${sub}</sub>`;
+      $('v-eqn').innerHTML = `${num(s.b0, 3)}${term(s.b1, 1)}${term(s.b2, 2)} = 0`;
+      $('v-cost').hidden = false;
+      $('v-cost').innerHTML = s.hard
+        ? 'Equivale a um <code>cost</code> alto o bastante no e1071 ou scikit-learn.'
+        : `Equivale a <code>cost</code> = ${sig(s.cost)} no e1071 (com <code>scale = FALSE</code>) e ao argumento <code>C</code> do <code>SVC</code>, que não é o orçamento. Quanto maior o <span class="math"><i>C</i></span> daqui, menor esse <code>cost</code>.`;
+      $('v-svlab').textContent = `Vetores suporte: ${s.sv.length}`;
+      const sorted = [...s.sv].sort((a, b) => s.eps[b] - s.eps[a]);
+      $('v-sv').innerHTML = sorted.map(i => {
+        const p = pts[i];
+        return `<li><span class="chip ${p.c === 1 ? 'b' : 'p'}"></span><span>${coord(p)}</span><span class="cls">ϵ = ${num(s.eps[i])}</span></li>`;
+      }).join('');
+    } else {
+      $('v-cost').hidden = true;
+      $('v-eqn').textContent = s.kind === 'flat' ? 'Com β = 0, não há hiperplano.' : 'Nenhum hiperplano cabe neste orçamento.';
+    }
+
+    // Narração
+    const say = $('say');
+    say.className = 'say' + (s.kind === 'infeasible' ? ' warn' : '');
+    if (s.kind === 'infeasible') {
+      say.textContent = s.Cmin >= s.Cmax
+        ? `Estes dados não admitem β diferente de zero: qualquer C abaixo de ${num(s.Cmax)} é inviável.`
+        : `Com C = ${num(C)} não há solução. Estes dados não são separáveis e exigem C ≥ ${num(s.Cmin)}. Aumente C ou mova um ponto.${state.ghost ? ' A linha cinza é o hiperplano antes do arraste.' : ''}`;
+      return;
+    }
+    if (s.kind === 'flat') {
+      say.textContent = `Com C ≥ 2·min(n₊, n₋) = ${s.Cmax}, o orçamento cobre todas as violações: β = 0 e a margem fica infinita. Diminua C para obter um hiperplano.`;
+      return;
+    }
+    if (s.unconverged) {
+      say.className = 'say warn';
+      say.textContent = 'O otimizador parou antes de convergir, então esta solução é aproximada. Ajuste C ou mova um ponto.';
+      return;
+    }
+    if (state.flash) { say.textContent = state.flash; return; }
+    const i = state.drag >= 0 ? state.drag : state.sel;
+    if (i < 0 || !pts[i]) {
+      say.textContent = state.tool === 'move'
+        ? (s.hard ? 'Com C = 0, nenhum ponto pode violar a margem. Aumente C e veja a margem alargar.'
+                  : 'Mova C e veja a margem mudar. Pontos sem anel estão fora da margem: movê-los não altera a solução.')
+        : state.tool === 'add' ? `Clique no gráfico para adicionar um ponto ${className(state.addClass)}.`
+        : 'Clique em um ponto para removê-lo.';
+      return;
+    }
+    const p = pts[i], yf = p.c * (s.b0 + s.b1*p.x + s.b2*p.y), e = s.eps[i];
+    const msg = s.wrong.includes(i) ? 'Lado errado do hiperplano: vetor suporte classificado incorretamente.'
+      : s.inside.includes(i) ? 'Dentro da margem, no lado certo do hiperplano: vetor suporte.'
+      : s.margin.includes(i) ? 'Sobre a margem: vetor suporte.'
+      : 'Fora da margem: movê-lo não muda a solução até encostar na faixa.';
+    say.innerHTML = `<span class="chip ${p.c === 1 ? 'b' : 'p'}"></span><span><span class="num">${coord(p)}, <span class="math"><i>y f</i>(<i>x</i>)</span> = ${num(yf, 3)}, <span class="math"><i>ϵ</i></span> = ${num(e, 3)}.</span> ${msg}${state.ghostShown ? ' A linha cinza é o hiperplano antes do arraste.' : ''}</span>`;
+  }
+
+  /* ---------- interação ---------- */
+  function toData(ev) {
+    const m = svg.getScreenCTM().inverse();
+    const q = new DOMPoint(ev.clientX, ev.clientY).matrixTransform(m);
+    return { sx: q.x, sy: q.y, x: X0 + (q.x - ML)/S, y: Y1 - (q.y - MT)/S };
+  }
+  const PAD = 0.03;
+  const clampX = x => Math.max(X0 + PAD, Math.min(X1 - PAD, x));
+  const clampY = y => Math.max(Y0 + PAD, Math.min(Y1 - PAD, y));
+  const inPlot = d => d.x >= X0 && d.x <= X1 && d.y >= Y0 && d.y <= Y1;
+
+  function nearestPoint(d) {
+    const R = coarse ? 30 : 19;
+    let best = -1, bd = R;
+    state.points.forEach((p, i) => { const v = Math.hypot(px(p.x) - d.sx, py(p.y) - d.sy); if (v < bd) { bd = v; best = i; } });
+    return best;
+  }
+  const snapshot = () => (state.sol && state.sol.kind === 'ok') ? { b0: state.sol.b0, b1: state.sol.b1, b2: state.sol.b2 } : null;
+
+  function startDrag(i, ev) {
+    state.drag = i; state.sel = i; state.ghost = snapshot(); state.flash = '';
+    svg.classList.add('dragging');
+    try { svg.setPointerCapture(ev.pointerId); } catch (e) {}
+    ev.preventDefault();
+  }
+
+  function removePoint(i) {
+    const c = state.points[i].c;
+    if (state.points.filter(p => p.c === c).length === 1) {
+      state.flash = `A classe ${className(c)} precisa de pelo menos um ponto.`;
+      render();
+      return;
+    }
+    state.points.splice(i, 1);
+    state.sel = -1; state.flash = '';
+    buildPoints();
+    render();
+  }
+
+  svg.addEventListener('pointerdown', ev => {
+    if (ev.button !== 0) return;
+    const d = toData(ev);
+    const i = nearestPoint(d);
+    if (state.tool === 'move' && i >= 0) { startDrag(i, ev); nodes[i].n.focus({ preventScroll: true }); render(); }
+    else if (state.tool === 'remove' && i >= 0) { ev.preventDefault(); removePoint(i); }
+    else if (state.tool === 'add' && inPlot(d)) {
+      const snap = snapshot();
+      state.points.push({ x: clampX(d.x), y: clampY(d.y), c: state.addClass });
+      buildPoints();
+      startDrag(state.points.length - 1, ev);
+      state.ghost = snap;
+      render();
+    }
+  });
+  svg.addEventListener('pointermove', ev => {
+    if (state.drag < 0) {
+      if (ev.pointerType === 'mouse') {
+        const i = nearestPoint(toData(ev));
+        if (i !== state.sel && (i >= 0 || state.sel >= 0)) { state.sel = i; render(); }
+      }
+      return;
+    }
+    const d = toData(ev), p = state.points[state.drag];
+    p.x = clampX(d.x); p.y = clampY(d.y);
+    state.flash = '';
+    render();
+  });
+  const endDrag = () => {
+    if (state.drag < 0) return;
+    state.drag = -1; state.ghost = null;
+    svg.classList.remove('dragging');
+    render();
+  };
+  svg.addEventListener('pointerup', endDrag);
+  svg.addEventListener('pointercancel', endDrag);
+  // No celular, o arraste de um ponto não deve rolar a página.
+  svg.addEventListener('touchmove', ev => { if (state.drag >= 0) ev.preventDefault(); }, { passive: false });
+  svg.addEventListener('pointerleave', () => { if (state.drag < 0 && state.sel >= 0 && document.activeElement?.dataset?.i === undefined) { state.sel = -1; render(); } });
+
+  // Teclado: setas movem o ponto em foco, Shift aumenta o passo, Delete remove.
+  svg.addEventListener('keydown', ev => {
+    const a = ev.target.getAttribute?.('data-i');
+    if (a === null || a === undefined) return;
+    const i = Number(a);
+    if (!state.points[i]) return;
+    const step = ev.shiftKey ? 0.25 : 0.05, p = state.points[i];
+    const dir = { ArrowLeft: [-1,0], ArrowRight: [1,0], ArrowUp: [0,1], ArrowDown: [0,-1] }[ev.key];
+    if (dir) {
+      p.x = clampX(p.x + dir[0]*step); p.y = clampY(p.y + dir[1]*step);
+      state.sel = i; state.flash = '';
+      ev.preventDefault();
+      render();
+    } else if (ev.key === 'Delete' || ev.key === 'Backspace') {
+      ev.preventDefault();
+      removePoint(i);
+    }
+  });
+  svg.addEventListener('focusin', ev => {
+    const a = ev.target.getAttribute?.('data-i');
+    if (a !== null && a !== undefined && state.drag < 0) { state.sel = Number(a); render(); }
+  });
+
+  // Orçamento C (escala quadrática: mais resolução nos valores pequenos)
+  $('c-range').addEventListener('input', e => {
+    const t = Number(e.target.value) / 1000, Cmax = state.sol.Cmax;
+    state.C = Math.round(Cmax*t*t*100) / 100;
+    state.flash = '';
+    render({ fromSlider: true });
+  });
+  $('c-num').addEventListener('input', e => {
+    const v = parseFloat(String(e.target.value).replace(',', '.'));
+    if (!Number.isFinite(v) || v < 0) return;
+    state.C = v; state.flash = '';
+    render();
+  });
+  $('c-num').addEventListener('blur', () => { $('c-num').value = state.C.toFixed(2); });
+  $('c-zero').addEventListener('click', () => { state.C = 0; state.flash = ''; render(); });
+  $('c-usemin').addEventListener('click', () => { state.C = roundUp(state.sol.Cmin); state.flash = ''; render(); });
+
+  // Ferramentas
+  const toolButtons = [...document.querySelectorAll('.seg button')];
+  toolButtons.forEach(b => b.addEventListener('click', () => {
+    state.tool = b.dataset.tool;
+    if (b.dataset.cls) state.addClass = Number(b.dataset.cls);
+    toolButtons.forEach(o => o.setAttribute('aria-pressed', String(o === b)));
+    svg.setAttribute('data-tool', state.tool);
+    state.sel = -1; state.flash = '';
+    render();
+  }));
+  $('t-addb').setAttribute('aria-label', 'Adicionar ponto azul');
+  $('t-addp').setAttribute('aria-label', 'Adicionar ponto roxo');
+
+  function setData(points) {
+    state.points = points; state.sel = -1; state.drag = -1; state.ghost = null; state.flash = '';
+    buildPoints();
+    render();
+  }
+  $('reset').addEventListener('click', () => setData(figure()));
+  $('random').addEventListener('click', () => {
+    // Duas nuvens gaussianas com distância sorteada: algumas se sobrepõem, outras não.
+    const gauss = () => Math.sqrt(-2*Math.log(1 - Math.random())) * Math.cos(2*Math.PI*Math.random());
+    const theta = Math.random()*Math.PI*2, sep = 1.1 + Math.random()*2, sd = 0.6;
+    const cx = (X0+X1)/2, cy = (Y0+Y1)/2, nx = Math.cos(theta), ny = Math.sin(theta), pts = [];
+    const n = 10 + Math.floor(Math.random()*5);
+    for (const c of [1, -1]) for (let k = 0; k < n; k++) {
+      pts.push({ x: clampX(cx + c*nx*sep/2 + sd*gauss()), y: clampY(cy + c*ny*sep/2 + sd*gauss()), c });
+    }
+    setData(pts);
+    const s = state.sol;
+    if (s.kind === 'infeasible' && s.Cmin < s.Cmax) {
+      state.C = roundUp(s.Cmin);
+      state.flash = `Estes dados não são separáveis. C foi ajustado para ${num(state.C)}, o menor valor viável arredondado.`;
+      render();
+    }
+  });
+
+  // Opções de exibição
+  for (const [id, key] of [['o-margin','margin'],['o-sv','sv'],['o-slack','slack'],['o-reg','reg'],['o-hull','hull']]) {
+    $(id).addEventListener('change', e => {
+      state.show[key] = e.target.checked;
+      if (key === 'hull') $('hullnote').hidden = !e.target.checked;
+      render();
+    });
+  }
+
+  drawAxes();
+  buildPoints();
+  render();
+})();
+</script>
+</body>
+</html>

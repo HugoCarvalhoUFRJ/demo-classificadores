@@ -1,0 +1,1156 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<style>
+:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0;font:14px system-ui,-apple-system,sans-serif}
+img{max-width:100%}
+[hidden]{display:none!important}
+</style>
+<script>
+// O tema é escolhido no cabeçalho do site e chega aqui por mensagem, o que funciona também abrindo os arquivos direto do disco.
+(() => {
+  const root = document.documentElement;
+  const apply = t => { if (t === 'dark' || t === 'light') root.setAttribute('data-theme', t); else root.removeAttribute('data-theme'); };
+  try { apply(localStorage.getItem('svm-theme')); } catch (e) {}
+  addEventListener('message', e => { if (e.source === window.parent && e.data && 'svmTheme' in e.data) apply(e.data.svmTheme); });
+})();
+</script>
+<title>SVM com Kernels</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400&family=IBM+Plex+Sans:wght@400;500;600&family=STIX+Two+Text:ital,wght@0,400;0,600;1,400;1,600&display=swap" media="print" onload="this.media=\'all\'">
+<style>
+/* Layout: o gráfico ocupa a tela como numa aula projetada, com kernel e parâmetros logo acima; à direita, a solução atual. */
+:root {
+  --paper: #fbfbfe;
+  --plot: #ffffff;
+  --ink: #15151f;
+  --muted: #5d5d72;
+  --rule: #d8d8e6;
+  --tint: #eeeef6;
+  --blue: #1596e4;
+  --blue-dot: #3fb0f2;
+  --pink: #c544b8;
+  --pink-dot: #d873cd;
+  --warn: #b23a0e;
+  --warn-tint: #fdeee6;
+  --math: "STIX Two Text", "Latin Modern Roman", "Times New Roman", serif;
+  --ui: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+  --code: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #12131b; --plot: #171823; --ink: #eeeef6; --muted: #a2a2b8; --rule: #33354a; --tint: #23253a;
+    --blue: #4dbbf7; --blue-dot: #3a9fdc; --pink: #e679dc; --pink-dot: #c766be;
+    --warn: #ff9d73; --warn-tint: #3a2118; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #12131b; --plot: #171823; --ink: #eeeef6; --muted: #a2a2b8; --rule: #33354a; --tint: #23253a;
+  --blue: #4dbbf7; --blue-dot: #3a9fdc; --pink: #e679dc; --pink-dot: #c766be;
+  --warn: #ff9d73; --warn-tint: #3a2118; color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--paper); color: var(--ink);
+  font: 400 15px/1.45 var(--ui);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 14px 20px;
+}
+.app {
+  display: grid; gap: 12px 28px; max-width: 1320px; margin-inline: auto;
+  grid-template-columns: minmax(0, 1fr) 330px;
+  grid-template-areas: "head head" "main side";
+}
+header { grid-area: head; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 16px; }
+h1 { font: 600 clamp(1.4rem, 2.4vw, 1.75rem)/1.15 var(--math); margin: 0; text-wrap: balance; }
+header p { margin: 0; color: var(--muted); }
+main { grid-area: main; min-width: 0; display: grid; gap: 8px; align-content: start; }
+aside { grid-area: side; min-width: 0; display: grid; gap: 16px; align-content: start; }
+
+/* Barras de controle */
+.bar { display: flex; flex-wrap: wrap; gap: 8px 12px; justify-content: space-between; align-items: center; }
+.seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--rule); border-radius: 7px; overflow: hidden; background: var(--plot); }
+.seg button { border: 0; border-radius: 0; background: transparent; border-right: 1px solid var(--rule); }
+.seg button:last-child { border-right: 0; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--plot); }
+.acts { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+button, select {
+  font: 500 14px/1 var(--ui); color: var(--ink); background: var(--plot);
+  border: 1px solid var(--rule); border-radius: 7px; padding: 9px 12px; min-height: 36px;
+}
+button { cursor: pointer; display: inline-flex; align-items: center; gap: 7px; }
+button:hover { background: var(--tint); }
+.seg button[aria-pressed="true"]:hover { background: var(--ink); }
+button:focus-visible, input:focus-visible, select:focus-visible, .svlist:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.chip { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex: none; }
+.chip.b { background: var(--blue); }
+.chip.p { background: var(--pink); }
+
+.params { display: flex; flex-wrap: wrap; gap: 6px 18px; }
+.ctl { display: flex; align-items: center; gap: 8px; flex: 1 1 230px; min-width: 0; }
+.ctl label { font: italic 400 1.15rem/1 var(--math); white-space: nowrap; }
+.ctl label.word { font: 500 14px/1 var(--code); }
+.ctl input[type="number"] {
+  width: 4.9em; flex: none; font: 500 14px/1 var(--ui); font-variant-numeric: tabular-nums; color: var(--ink);
+  background: var(--plot); border: 1px solid var(--rule); border-radius: 7px; padding: 7px; min-height: 34px;
+}
+.ctl input[type="range"] { flex: 1 1 auto; min-width: 60px; margin: 0; accent-color: var(--ink); height: 26px; }
+
+/* Narração do que está acontecendo no gráfico */
+.say {
+  min-height: 3.1em; display: flex; align-items: center; gap: 9px;
+  padding: 6px 12px; border-radius: 7px; background: var(--tint); line-height: 1.3;
+}
+.say.warn { background: var(--warn-tint); color: var(--warn); font-weight: 500; }
+.say .num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* Gráfico: tela para as regiões, SVG por cima para curvas, eixos e pontos */
+.plotwrap {
+  position: relative; aspect-ratio: 602 / 628; margin-inline: auto; max-width: 100%;
+  width: max(min(100%, 360px), min(100%, calc((100dvh - 285px) * 0.9586)));
+}
+#cv { position: absolute; left: calc(54 / 602 * 100%); top: calc(8 / 628 * 100%); width: calc(525 / 602 * 100%); height: calc(552 / 628 * 100%); display: block; }
+svg#plot {
+  position: absolute; inset: 0; display: block; width: 100%; height: 100%;
+  touch-action: pan-y; user-select: none; -webkit-user-select: none;
+}
+svg#plot[data-tool="add"] { touch-action: none; cursor: crosshair; }
+svg#plot[data-tool="remove"] .hit { cursor: pointer; }
+svg#plot[data-tool="move"] .hit { cursor: grab; }
+svg#plot.dragging, svg#plot.dragging .hit { cursor: grabbing !important; }
+.frame { fill: none; stroke: var(--ink); stroke-width: 2; }
+.tick { stroke: var(--ink); stroke-width: 1.5; }
+.ticklab { fill: var(--muted); font: 400 16px var(--ui); font-variant-numeric: tabular-nums; }
+.axlab { fill: var(--ink); font: italic 400 23px var(--math); }
+.curve { fill: none; stroke-linejoin: round; stroke-linecap: round; }
+.hyper { stroke: var(--ink); stroke-width: 3.6; }
+.marg { stroke: var(--ink); stroke-width: 1.8; stroke-dasharray: 8 6; stroke-linecap: butt; }
+.ghost { stroke: var(--muted); stroke-width: 2; opacity: .75; }
+.dot { stroke: var(--plot); stroke-width: 1.5; }
+.pt.b .dot { fill: var(--blue); }
+.pt.p .dot { fill: var(--pink); }
+.ring { fill: none; stroke: var(--ink); stroke-width: 2.4; }
+.cross { stroke: var(--plot); stroke-width: 2.4; stroke-linecap: round; pointer-events: none; }
+.pt:focus { outline: none; }
+.pt:focus-visible .dot { stroke: var(--ink); stroke-width: 3; }
+.hit { fill: transparent; touch-action: none; }
+
+/* Coluna da solução */
+.lab { font: 500 11.5px/1.2 var(--ui); letter-spacing: .07em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+section { min-width: 0; }
+.head-row { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 6px 12px; }
+.bigM { font: 400 2.4rem/1 var(--math); font-variant-numeric: tabular-nums lining-nums; white-space: nowrap; }
+.bigM i { font-size: .62em; margin-right: .3em; }
+#v-eq { font-size: .72em; vertical-align: .06em; }
+.pill { font: 600 12.5px/1 var(--ui); padding: 6px 9px; border-radius: 99px; border: 1.5px solid currentColor; white-space: nowrap; margin-bottom: 4px; font-variant-numeric: tabular-nums; }
+.note { color: var(--muted); font-size: 13.5px; margin: 6px 0 0; }
+.eq { font: 400 1.06rem/1.5 var(--math); font-variant-numeric: lining-nums tabular-nums; margin: 0; overflow-wrap: anywhere; }
+.eq + .eq { margin-top: 3px; }
+.math { font-family: var(--math); font-size: 1.07em; font-variant-numeric: lining-nums; }
+sub, sup { font-size: .68em; line-height: 0; }
+.spend { display: flex; gap: 1px; height: 14px; border-radius: 3px; overflow: hidden; background: var(--tint); }
+.spend span { display: block; min-width: 1px; }
+.spend .b { background: var(--blue); }
+.spend .p { background: var(--pink); }
+.lab .keep { text-transform: none; letter-spacing: .01em; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.counts { list-style: none; margin: 0; padding: 0; display: grid; gap: 3px; }
+.counts li { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; align-items: center; gap: 7px; font-variant-numeric: tabular-nums; }
+.counts svg { display: block; }
+.counts small { color: var(--muted); font-size: 12.5px; }
+.svlist { list-style: none; margin: 0; padding: 0 4px 0 0; display: grid; gap: 3px; max-height: 8.4em; overflow-y: auto; }
+.svlist li { display: grid; grid-template-columns: 14px minmax(0, 1fr) auto auto; align-items: center; gap: 4px 10px; font-variant-numeric: tabular-nums; }
+.svlist .cls { color: var(--muted); font-size: 13px; white-space: nowrap; }
+.toggles { display: grid; gap: 2px; }
+.toggles label { display: grid; grid-template-columns: 18px 30px 1fr; gap: 8px; align-items: center; padding: 3px 0; cursor: pointer; }
+.toggles input { margin: 0; width: 16px; height: 16px; accent-color: var(--ink); }
+.toggles svg { display: block; }
+.code { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; align-items: start; }
+.code + .code { margin-top: 8px; }
+code { font: 400 12.5px/1.45 var(--code); }
+.code code { display: block; background: var(--tint); border-radius: 6px; padding: 7px 9px; overflow-wrap: anywhere; }
+.copy { font-size: 12.5px; min-height: 30px; padding: 6px 8px; }
+.codehead { color: var(--muted); font-size: 12.5px; margin: 0 0 3px; }
+
+@media (max-width: 900px) {
+  .app { grid-template-columns: minmax(0, 1fr); grid-template-areas: "head" "main" "side"; }
+  .plotwrap { width: 100%; }
+}
+@media (max-width: 480px) {
+  .seg button { padding: 9px 9px; font-size: 13px; }
+  .acts button, .acts select { font-size: 13px; padding: 9px 10px; }
+  .say { font-size: 14px; }
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header>
+    <h1>Máquina de vetor suporte</h1>
+    <p>Arraste os pontos, troque o kernel e ajuste os parâmetros. A solução é recalculada a cada movimento.</p>
+  </header>
+
+  <main>
+    <div class="bar">
+      <div class="seg" role="group" aria-label="Ferramenta">
+        <button id="t-move" data-tool="move" aria-pressed="true">Mover</button>
+        <button id="t-addb" data-tool="add" data-cls="1" aria-pressed="false"><span class="chip b"></span>Adicionar</button>
+        <button id="t-addp" data-tool="add" data-cls="-1" aria-pressed="false"><span class="chip p"></span>Adicionar</button>
+        <button id="t-rem" data-tool="remove" aria-pressed="false">Remover</button>
+      </div>
+      <div class="acts">
+        <select id="dataset" aria-label="Conjunto de dados">
+          <option value="ring">Dados: anel</option>
+          <option value="parab">Dados: parábola</option>
+          <option value="xor">Dados: XOR</option>
+          <option value="moons">Dados: duas luas</option>
+          <option value="figure">Dados: figura do livro</option>
+        </select>
+        <button id="reset">Restaurar dados</button>
+      </div>
+    </div>
+
+    <div class="seg" role="group" aria-label="Kernel" id="kernels" style="justify-self:start">
+      <button id="k-linear" data-k="linear" aria-pressed="false">Linear</button>
+      <button id="k-poly" data-k="poly" aria-pressed="false">Polinomial</button>
+      <button id="k-rbf" data-k="rbf" aria-pressed="true">Radial</button>
+      <button id="k-sigmoid" data-k="sigmoid" aria-pressed="false">Sigmoide</button>
+    </div>
+
+    <div class="params">
+      <div class="ctl"><label class="word" for="p-cost-n">cost</label><input id="p-cost-n" type="number" min="0.001" step="any" inputmode="decimal"><input id="p-cost" type="range" min="-2" max="3" step="0.01" aria-label="cost"></div>
+      <div class="ctl" id="c-d"><label for="p-d-n">d</label><input id="p-d-n" type="number" min="1" max="5" step="1"><input id="p-d" type="range" min="1" max="5" step="1" aria-label="Grau d"></div>
+      <div class="ctl" id="c-g"><label for="p-g-n">γ</label><input id="p-g-n" type="number" min="0.001" step="any" inputmode="decimal"><input id="p-g" type="range" min="-2" max="2" step="0.01" aria-label="Gama"></div>
+      <div class="ctl" id="c-r"><label for="p-r-n">r</label><input id="p-r-n" type="number" min="-5" max="5" step="any" inputmode="decimal"><input id="p-r" type="range" min="-5" max="5" step="0.05" aria-label="Constante r"></div>
+    </div>
+
+    <div id="say" class="say" role="status" aria-live="polite"></div>
+
+    <div class="plotwrap">
+      <canvas id="cv" aria-hidden="true"></canvas>
+      <svg id="plot" viewBox="0 0 602 628" data-tool="move" aria-label="Gráfico de dispersão de X1 por X2 com a fronteira de decisão do SVM. Os pontos podem ser arrastados.">
+        <defs><clipPath id="clip"><rect id="cliprect"></rect></clipPath></defs>
+        <g clip-path="url(#clip)">
+          <path id="ghost" class="curve ghost"></path>
+          <g id="layer-margins"><path id="marg-b" class="curve marg"></path><path id="marg-p" class="curve marg"></path></g>
+          <path id="hyper" class="curve hyper"></path>
+        </g>
+        <rect class="frame" id="frame"></rect>
+        <g id="axes"></g>
+        <g id="layer-points"></g>
+      </svg>
+    </div>
+  </main>
+
+  <aside>
+    <section>
+      <p class="lab">Margem no espaço de atributos</p>
+      <div class="head-row">
+        <div class="bigM"><i>M</i><span id="v-eq">=</span> <span id="v-m"></span></div>
+        <span id="pill" class="pill"></span>
+      </div>
+      <p class="note">M = 1/‖β‖, com β na escala em que a margem fica em <span class="math"><i>f</i>(<i>x</i>) = ±1</span>. Com kernel não linear, a largura da faixa varia no plano.</p>
+    </section>
+
+    <section>
+      <p class="lab" id="v-spendlab"></p>
+      <div class="spend" id="v-spend" aria-hidden="true"></div>
+      <p class="note" id="v-budget"></p>
+    </section>
+
+    <section>
+      <p class="lab" id="v-svlab"></p>
+      <ul class="counts">
+        <li><svg width="22" height="18" aria-hidden="true"><circle cx="11" cy="9" r="7.5" fill="none" stroke="currentColor" stroke-width="1.6"></circle><circle cx="11" cy="9" r="4" fill="var(--muted)"></circle></svg><span>Sobre a margem <small>ϵ = 0</small></span><b id="v-c1"></b></li>
+        <li><svg width="22" height="18" aria-hidden="true"><circle cx="11" cy="9" r="7.5" fill="none" stroke="currentColor" stroke-width="1.6"></circle><circle cx="11" cy="9" r="4" fill="var(--muted)"></circle></svg><span>Dentro da margem <small>0 &lt; ϵ ≤ 1</small></span><b id="v-c2"></b></li>
+        <li><svg width="22" height="18" aria-hidden="true"><circle cx="11" cy="9" r="7.5" fill="none" stroke="currentColor" stroke-width="1.6"></circle><circle cx="11" cy="9" r="5" fill="var(--muted)"></circle><path d="M8.6 6.6 L13.4 11.4 M13.4 6.6 L8.6 11.4" stroke="var(--paper)" stroke-width="1.5" stroke-linecap="round"></path></svg><span>Lado errado <small>ϵ &gt; 1</small></span><b id="v-c3"></b></li>
+      </ul>
+    </section>
+
+    <section>
+      <p class="lab">Função de decisão, eq. (9.23)</p>
+      <p class="eq" id="v-kernel"></p>
+      <p class="eq"><i>f</i>(<i>x</i>) = β<sub>0</sub> + Σ<sub><i>i</i>∈<i>S</i></sub> α<sub><i>i</i></sub> <i>K</i>(<i>x</i>, <i>x<sub>i</sub></i>)</p>
+      <p class="note" id="v-beta"></p>
+    </section>
+
+    <section id="svbox">
+      <p class="lab">Lista de vetores suporte</p>
+      <ul class="svlist" id="v-sv" tabindex="0" aria-label="Lista de vetores suporte"></ul>
+    </section>
+
+    <section>
+      <p class="lab">Exibir</p>
+      <div class="toggles">
+        <label for="o-margin"><input type="checkbox" id="o-margin" checked>
+          <svg width="30" height="14" aria-hidden="true"><line x1="0" y1="7" x2="30" y2="7" stroke="currentColor" stroke-width="1.8" stroke-dasharray="6 4"></line></svg>Margem</label>
+        <label for="o-sv"><input type="checkbox" id="o-sv" checked>
+          <svg width="30" height="16" aria-hidden="true"><circle cx="15" cy="8" r="6.5" fill="none" stroke="currentColor" stroke-width="1.6"></circle><circle cx="15" cy="8" r="3.5" fill="var(--blue)"></circle></svg>Vetores suporte</label>
+        <label for="o-reg"><input type="checkbox" id="o-reg" checked>
+          <svg width="30" height="14" aria-hidden="true"><g fill="var(--blue-dot)"><circle cx="3" cy="3" r="1.3"></circle><circle cx="9" cy="3" r="1.3"></circle><circle cx="3" cy="11" r="1.3"></circle><circle cx="9" cy="11" r="1.3"></circle></g><g fill="var(--pink-dot)"><circle cx="21" cy="3" r="1.3"></circle><circle cx="27" cy="3" r="1.3"></circle><circle cx="21" cy="11" r="1.3"></circle><circle cx="27" cy="11" r="1.3"></circle></g></svg>Regiões de decisão</label>
+      </div>
+    </section>
+
+    <section>
+      <p class="lab">Mesmo modelo em código</p>
+      <p class="codehead">R, com e1071 e <code>y</code> como fator</p>
+      <div class="code"><code id="code-r"></code><button class="copy" id="copy-r">Copiar</button></div>
+      <p class="codehead" style="margin-top:8px">Python, com scikit-learn</p>
+      <div class="code"><code id="code-py"></code><button class="copy" id="copy-py">Copiar</button></div>
+    </section>
+  </aside>
+</div>
+
+<script>
+/*SOLVER-START*/
+// Dual do SVM: min ½α'Qα − Σα, com Σαᵢyᵢ = 0 e 0 ≤ αᵢ ≤ cost.
+// Kernels positivos semidefinidos: pontos interiores (Mehrotra).
+// Sigmoide: pode não ser semidefinido, então usa o SMO do libsvm, que é o que e1071 e scikit-learn executam.
+const Solver = (() => {
+  function kernelFn(k) {
+    if (k.type === 'linear') return (a, b) => a.x*b.x + a.y*b.y;
+    if (k.type === 'poly') return (a, b) => Math.pow(a.x*b.x + a.y*b.y + 1, k.d);
+    if (k.type === 'rbf') return (a, b) => Math.exp(-k.gamma*((a.x-b.x)*(a.x-b.x) + (a.y-b.y)*(a.y-b.y)));
+    return (a, b) => Math.tanh(k.gamma*(a.x*b.x + a.y*b.y) + k.r);
+  }
+
+  function ipm(Q, y, c) {
+    const n = y.length;
+    const alpha = new Float64Array(n), z = new Float64Array(n), u = new Float64Array(n), s = new Float64Array(n);
+    const a0 = Math.min(c/2, 1);
+    for (let i = 0; i < n; i++) { alpha[i] = a0; s[i] = c - a0; z[i] = 1/a0; u[i] = 1/s[i]; }
+    let nu = 0, iters = 0, converged = false;
+    const L = Array.from({ length: n }, () => new Float64Array(n));
+    const rd = new Float64Array(n), g = new Float64Array(n), Hy = new Float64Array(n), Hg = new Float64Array(n);
+    const da = new Float64Array(n), dz = new Float64Array(n), du = new Float64Array(n);
+    const rc1 = new Float64Array(n), rc2 = new Float64Array(n);
+    let D = new Float64Array(n);
+
+    function factor() {
+      for (let reg = 1e-12; reg < 1; reg *= 100) {
+        let ok = true;
+        for (let i = 0; i < n && ok; i++) {
+          for (let j = 0; j <= i; j++) {
+            let v = Q[i][j] + (i === j ? D[i] + reg : 0);
+            for (let k = 0; k < j; k++) v -= L[i][k]*L[j][k];
+            if (i === j) { if (!(v > 0)) { ok = false; break; } L[i][i] = Math.sqrt(v); }
+            else L[i][j] = v / L[j][j];
+          }
+        }
+        if (ok) return true;
+      }
+      return false;
+    }
+    function solveL(b, out) {
+      for (let i = 0; i < n; i++) { let v = b[i]; for (let k = 0; k < i; k++) v -= L[i][k]*out[k]; out[i] = v / L[i][i]; }
+      for (let i = n-1; i >= 0; i--) { let v = out[i]; for (let k = i+1; k < n; k++) v -= L[k][i]*out[k]; out[i] = v / L[i][i]; }
+    }
+    let yHy = 1, rp = 0, dnu = 0;
+    function direction() {
+      for (let i = 0; i < n; i++) g[i] = -rd[i] - rc1[i]/alpha[i] + rc2[i]/s[i];
+      solveL(g, Hg);
+      let yHg = 0;
+      for (let i = 0; i < n; i++) yHg += y[i]*Hg[i];
+      dnu = (yHg + rp) / yHy;
+      for (let i = 0; i < n; i++) {
+        da[i] = Hg[i] - dnu*Hy[i];
+        dz[i] = (-rc1[i] - z[i]*da[i]) / alpha[i];
+        du[i] = (-rc2[i] + u[i]*da[i]) / s[i];
+      }
+    }
+    function maxStep() {
+      let a = 1;
+      for (let i = 0; i < n; i++) {
+        if (da[i] < 0) a = Math.min(a, -alpha[i]/da[i]);
+        if (da[i] > 0) a = Math.min(a, s[i]/da[i]);
+        if (dz[i] < 0) a = Math.min(a, -z[i]/dz[i]);
+        if (du[i] < 0) a = Math.min(a, -u[i]/du[i]);
+      }
+      return a;
+    }
+    for (iters = 0; iters < 150; iters++) {
+      let mu = 0, rn = 0, ob = 0; rp = 0;
+      for (let i = 0; i < n; i++) {
+        let t = 0;
+        for (let j = 0; j < n; j++) t += Q[i][j]*alpha[j];
+        ob += alpha[i]*(0.5*t - 1);
+        rd[i] = t - 1 + y[i]*nu - z[i] + u[i];
+        rn = Math.max(rn, Math.abs(rd[i]));
+        rp += y[i]*alpha[i];
+        mu += alpha[i]*z[i] + s[i]*u[i];
+      }
+      const gap = mu;
+      mu /= 2*n;
+      if (rn < 1e-8 && Math.abs(rp) < 1e-8 && gap < 1e-9*(1 + Math.abs(ob))) { converged = true; break; }
+      for (let i = 0; i < n; i++) D[i] = z[i]/alpha[i] + u[i]/s[i];
+      if (!factor()) break;
+      solveL(y, Hy);
+      yHy = 0;
+      for (let i = 0; i < n; i++) yHy += y[i]*Hy[i];
+      for (let i = 0; i < n; i++) { rc1[i] = alpha[i]*z[i]; rc2[i] = s[i]*u[i]; }
+      direction();
+      const ap = maxStep();
+      let muAff = 0;
+      for (let i = 0; i < n; i++) muAff += (alpha[i]+ap*da[i])*(z[i]+ap*dz[i]) + (s[i]-ap*da[i])*(u[i]+ap*du[i]);
+      muAff /= 2*n;
+      const sigma = Math.pow(muAff/mu, 3);
+      for (let i = 0; i < n; i++) {
+        rc1[i] = alpha[i]*z[i] + da[i]*dz[i] - sigma*mu;
+        rc2[i] = s[i]*u[i] - da[i]*du[i] - sigma*mu;
+      }
+      direction();
+      const a = Math.min(1, 0.995*maxStep());
+      for (let i = 0; i < n; i++) {
+        alpha[i] += a*da[i]; s[i] = Math.max(s[i] - a*da[i], 1e-300);
+        z[i] += a*dz[i]; u[i] += a*du[i];
+      }
+      nu += a*dnu;
+    }
+    return { alpha, converged, iters };
+  }
+
+  // SMO com seleção de segunda ordem, como no libsvm.
+  function smo(Q, y, c) {
+    const n = y.length, alpha = new Float64Array(n), G = new Float64Array(n).fill(-1), TAU = 1e-12, EPS = 1e-5;
+    const up = i => (y[i] > 0 && alpha[i] < c) || (y[i] < 0 && alpha[i] > 0);
+    const low = i => (y[i] > 0 && alpha[i] > 0) || (y[i] < 0 && alpha[i] < c);
+    let it = 0, converged = false;
+    for (; it < 200000; it++) {
+      let i = -1, gmax = -Infinity, gmax2 = -Infinity;
+      for (let t = 0; t < n; t++) if (up(t) && -y[t]*G[t] >= gmax) { gmax = -y[t]*G[t]; i = t; }
+      let j = -1, best = Infinity;
+      for (let t = 0; t < n; t++) {
+        if (!low(t)) continue;
+        if (y[t]*G[t] >= gmax2) gmax2 = y[t]*G[t];
+        const diff = gmax + y[t]*G[t];
+        if (i >= 0 && diff > 0) {
+          const q = Q[i][i] + Q[t][t] - 2*y[i]*y[t]*Q[i][t];
+          const v = -(diff*diff) / (q > 0 ? q : TAU);
+          if (v <= best) { best = v; j = t; }
+        }
+      }
+      if (gmax + gmax2 < EPS || j < 0) { converged = true; break; }
+      const oi = alpha[i], oj = alpha[j];
+      // Projeta o passo no segmento viável: yᵢαᵢ + yⱼαⱼ fica constante e 0 ≤ α ≤ cost.
+      if (y[i] !== y[j]) {
+        let q = Q[i][i] + Q[j][j] + 2*Q[i][j]; if (q <= 0) q = TAU;
+        const delta = (-G[i] - G[j]) / q, diff = oi - oj;
+        const ai = Math.max(Math.max(0, diff), Math.min(Math.min(c, c + diff), oi + delta));
+        alpha[i] = ai; alpha[j] = ai - diff;
+      } else {
+        let q = Q[i][i] + Q[j][j] - 2*Q[i][j]; if (q <= 0) q = TAU;
+        const delta = (G[i] - G[j]) / q, sum = oi + oj;
+        const ai = Math.max(Math.max(0, sum - c), Math.min(Math.min(c, sum), oi - delta));
+        alpha[i] = ai; alpha[j] = sum - ai;
+      }
+      const di = alpha[i]-oi, dj = alpha[j]-oj;
+      for (let t = 0; t < n; t++) G[t] += Q[t][i]*di + Q[t][j]*dj;
+    }
+    // Intercepto como no libsvm
+    let ub = Infinity, lb = -Infinity, sum = 0, nf = 0;
+    for (let i = 0; i < n; i++) {
+      const v = y[i]*G[i];
+      if (alpha[i] >= c) { if (y[i] < 0) ub = Math.min(ub, v); else lb = Math.max(lb, v); }
+      else if (alpha[i] <= 0) { if (y[i] > 0) ub = Math.min(ub, v); else lb = Math.max(lb, v); }
+      else { nf++; sum += v; }
+    }
+    const rho = nf > 0 ? sum/nf : (ub + lb)/2;
+    return { alpha, converged, iters: it, b: -rho };
+  }
+
+  // Dado α, escolhe b. Quando há um intervalo de valores ótimos, usa o ponto médio, como o libsvm.
+  function polishB(g, y) {
+    const n = y.length, kinks = Array.from(g, (v, i) => y[i] - v);
+    const hinge = b => { let t = 0; for (let i = 0; i < n; i++) t += Math.max(0, 1 - y[i]*(g[i] + b)); return t; };
+    let best = Infinity;
+    const vals = kinks.map(k => { const h = hinge(k); if (h < best) best = h; return h; });
+    let lo = Infinity, hi = -Infinity;
+    const tol = 1e-8*(1 + best);
+    kinks.forEach((k, i) => { if (vals[i] <= best + tol) { lo = Math.min(lo, k); hi = Math.max(hi, k); } });
+    return (lo + hi) / 2;
+  }
+
+  function solve(points, kernel, cost) {
+    const n = points.length, K = kernelFn(kernel), y = Float64Array.from(points, p => p.c);
+    const Km = Array.from({ length: n }, () => new Float64Array(n));
+    let kappa = 0;
+    for (let i = 0; i < n; i++) for (let j = 0; j <= i; j++) {
+      const v = K(points[i], points[j]);
+      Km[i][j] = v; Km[j][i] = v;
+      if (i === j) kappa = Math.max(kappa, Math.abs(v));
+    }
+    let alpha, b, converged, iters;
+    const gOf = al => {
+      const g = new Float64Array(n);
+      for (let i = 0; i < n; i++) { let t = 0; for (let j = 0; j < n; j++) t += al[j]*y[j]*Km[i][j]; g[i] = t; }
+      return g;
+    };
+    // Lacuna de dualidade relativa: mede, sem depender do otimizador, a distância até a solução.
+    const dualityGap = (al, g, b0) => {
+      let quad = 0, sumA = 0, hinge = 0;
+      for (let i = 0; i < n; i++) { quad += al[i]*y[i]*g[i]; sumA += al[i]; hinge += Math.max(0, 1 - y[i]*(g[i] + b0)); }
+      const primal = 0.5*quad + cost*hinge;
+      return Math.abs(primal - (sumA - 0.5*quad)) / (1 + Math.abs(primal));
+    };
+    const Qraw = Km.map((r, i) => r.map((v, j) => v*y[i]*y[j]));
+    if (kernel.type === 'sigmoid') {
+      const r = smo(Qraw, y, cost);
+      alpha = r.alpha; b = r.b; converged = r.converged; iters = r.iters;
+    } else {
+      // Reescala para que a diagonal de Q fique perto de 1.
+      if (!(kappa > 0)) kappa = 1;
+      const Q = Qraw.map(r => r.map(v => v/kappa));
+      const r = ipm(Q, y, cost*kappa);
+      alpha = r.alpha.map(a => a/kappa); iters = r.iters;
+      let g0 = gOf(alpha);
+      b = polishB(g0, y);
+      let gap = dualityGap(alpha, g0, b);
+      if (!(gap <= 1e-7)) {
+        // Núcleos mal escalados (grau alto, cost alto): o SMO serve de segunda tentativa.
+        const r2 = smo(Qraw, y, cost);
+        const g2 = gOf(r2.alpha), b2 = polishB(g2, y), gap2 = dualityGap(r2.alpha, g2, b2);
+        if (gap2 < gap || !Number.isFinite(gap)) { alpha = r2.alpha; b = b2; gap = gap2; iters += r2.iters; g0 = g2; }
+      }
+      // Zera os α residuais de quem está claramente fora da margem, se o efeito em f for desprezível.
+      const trimmed = Float64Array.from(alpha);
+      for (let i = 0; i < n; i++) {
+        if (trimmed[i] < 0 || y[i]*(g0[i] + b) > 1 + 1e-4) trimmed[i] = 0;
+      }
+      const g1 = gOf(trimmed);
+      let shift = 0;
+      for (let i = 0; i < n; i++) shift = Math.max(shift, Math.abs(g1[i] - g0[i]));
+      if (shift <= 1e-6) { alpha = trimmed; b = polishB(g1, y); }
+      converged = gap <= 1e-5;
+    }
+    const g = gOf(alpha);
+    let norm2 = 0;
+    for (let i = 0; i < n; i++) norm2 += alpha[i]*y[i]*g[i];
+    const eps = new Array(n), vals = new Array(n), sv = [], margin = [], inside = [], wrong = [];
+    let sumEps = 0;
+    for (let i = 0; i < n; i++) {
+      const v = y[i]*(g[i] + b), e = 1 - v > 1e-4 ? 1 - v : 0;
+      vals[i] = v; eps[i] = e; sumEps += e;
+      if (e > 0) { sv.push(i); (v < 0 ? wrong : inside).push(i); }
+      // No sigmoide, α exato do SMO define o suporte; nos demais, a posição do ponto em relação à margem.
+      else if (Math.abs(v - 1) <= 1e-4 || (kernel.type === 'sigmoid' && alpha[i] > 0)) { sv.push(i); margin.push(i); }
+    }
+    return { alpha: Array.from(alpha), b, norm2, M: norm2 > 1e-10 ? 1/Math.sqrt(norm2) : null, eps, vals, sumEps, sv, margin, inside, wrong, converged, iters };
+  }
+
+  // Avalia f numa grade regular (eixo x de x0 com passo hx; eixo y de y0 com passo hy).
+  function evalGrid(points, sol, kernel, F, nx, ny, x0, hx, y0, hy) {
+    const sv = [];
+    points.forEach((p, i) => { if (sol.alpha[i] !== 0) sv.push({ x: p.x, y: p.y, a: sol.alpha[i]*p.c }); });
+    if (kernel.type === 'linear') {
+      let w1 = 0, w2 = 0;
+      for (const s of sv) { w1 += s.a*s.x; w2 += s.a*s.y; }
+      for (let j = 0, q = 0; j < ny; j++) { const yy = y0 + j*hy; for (let i = 0; i < nx; i++, q++) F[q] = sol.b + w1*(x0 + i*hx) + w2*yy; }
+      return;
+    }
+    F.fill(sol.b);
+    if (kernel.type === 'rbf') {
+      const Ex = new Float64Array(nx), Ey = new Float64Array(ny);
+      for (const s of sv) {
+        for (let i = 0; i < nx; i++) { const d = x0 + i*hx - s.x; Ex[i] = Math.exp(-kernel.gamma*d*d); }
+        for (let j = 0; j < ny; j++) { const d = y0 + j*hy - s.y; Ey[j] = s.a*Math.exp(-kernel.gamma*d*d); }
+        for (let j = 0, q = 0; j < ny; j++) { const e = Ey[j]; for (let i = 0; i < nx; i++, q++) F[q] += e*Ex[i]; }
+      }
+      return;
+    }
+    const K = kernelFn(kernel), pt = { x: 0, y: 0 };
+    for (const s of sv) {
+      for (let j = 0, q = 0; j < ny; j++) {
+        pt.y = y0 + j*hy;
+        for (let i = 0; i < nx; i++, q++) { pt.x = x0 + i*hx; F[q] += s.a*K(pt, s); }
+      }
+    }
+  }
+  return { solve, kernelFn, evalGrid };
+})();
+/*SOLVER-END*/
+
+(() => {
+  const X0 = -1.73, X1 = 3.52, Y0 = -1.77, Y1 = 3.75, S = 100, ML = 54, MT = 8;
+  const px = x => ML + (x - X0) * S;
+  const py = y => MT + (Y1 - y) * S;
+  const PW = (X1 - X0) * S, PH = (Y1 - Y0) * S;
+  const $ = id => document.getElementById(id);
+  const NS = 'http://www.w3.org/2000/svg';
+  const el = (tag, cls, parent) => { const e = document.createElementNS(NS, tag); if (cls) e.setAttribute('class', cls); if (parent) parent.appendChild(e); return e; };
+  const attrs = (e, o) => { for (const k in o) e.setAttribute(k, o[k]); };
+  const svg = $('plot');
+
+  /* ---------- conjuntos de dados (sementes fixas: sempre os mesmos pontos em aula) ---------- */
+  function rng(seed) {
+    let a = seed >>> 0;
+    const u = () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+    return { u, g: () => Math.sqrt(-2*Math.log(1 - u())) * Math.cos(2*Math.PI*u()) };
+  }
+  const CX = (X0+X1)/2, CY = (Y0+Y1)/2;
+  const bound = p => ({ x: Math.max(X0+.08, Math.min(X1-.08, p.x)), y: Math.max(Y0+.08, Math.min(Y1-.08, p.y)), c: p.c });
+  const DATA = {
+    ring() {
+      const r = rng(11), pts = [];
+      for (let i = 0; i < 18; i++) { const t = 2*Math.PI*(i + .4*r.u())/18, R = 2.05 + .2*r.g(); pts.push({ x: CX + R*Math.cos(t), y: CY + R*Math.sin(t), c: 1 }); }
+      for (let i = 0; i < 14; i++) pts.push({ x: CX + .48*r.g(), y: CY + .48*r.g(), c: -1 });
+      return pts;
+    },
+    parab() {
+      const r = rng(23), pts = [];
+      for (let i = 0; i < 16; i++) { const x = X0 + .4 + i*(PW/S - .8)/15; const h = .45*(x-CX)*(x-CX) + .3; pts.push({ x, y: h + .35 + .9*r.u(), c: 1 }); }
+      for (let i = 0; i < 16; i++) { const x = X0 + .4 + i*(PW/S - .8)/15 + .1*r.g(); const h = .45*(x-CX)*(x-CX) + .3; pts.push({ x, y: h - .35 - .9*r.u(), c: -1 }); }
+      return pts;
+    },
+    xor() {
+      const r = rng(37), pts = [], d = 1.28;
+      for (const [sx, sy, c] of [[1,1,1],[-1,-1,1],[1,-1,-1],[-1,1,-1]]) for (let i = 0; i < 8; i++) pts.push({ x: CX + sx*d + .36*r.g(), y: CY + sy*d + .36*r.g(), c });
+      return pts;
+    },
+    moons() {
+      const r = rng(53), pts = [], n = 16, R = 1.55;
+      for (let i = 0; i < n; i++) {
+        const t = Math.PI*i/(n-1);
+        pts.push({ x: CX - .75 + R*Math.cos(t) + .1*r.g(), y: CY - .1 + R*Math.sin(t) + .1*r.g(), c: 1 });
+        pts.push({ x: CX + .75 - R*Math.cos(t) + .1*r.g(), y: CY + .35 - R*Math.sin(t) + .1*r.g(), c: -1 });
+      }
+      return pts;
+    },
+    figure() {
+      const B = [[-0.25,3.55],[-0.67,2.89],[-0.58,2.89],[0.36,2.89],[0.89,2.03],[-1.53,1.82],[-0.02,1.66],[0.03,1.66],[-1.15,1.4],[-0.65,1.14],[-0.22,0.37],[-0.44,-0.17]];
+      const P = [[1.94,0.69],[1.65,0.49],[1.41,0.08],[2.02,0.01],[0.49,-0.17],[3.17,-0.21],[0.64,-0.74],[1.17,-0.86],[2.62,-0.93],[1.06,-0.97],[3.32,-1.09],[0.99,-1.56]];
+      return [...B.map(([x, y]) => ({ x, y, c: 1 })), ...P.map(([x, y]) => ({ x, y, c: -1 }))];
+    },
+  };
+  const loadData = name => DATA[name]().map(bound);
+
+  const state = {
+    points: loadData('ring'), dataset: 'ring', kernel: 'rbf', cost: 1, d: 3, gRbf: 1, gSig: 0.1, r: 0,
+    tool: 'move', addClass: 1, sel: -1, drag: -1, sol: null, flash: '', F0: null, ghostD: '',
+    show: { margin: true, sv: true, reg: true },
+  };
+  const kernelSpec = () => {
+    const k = state.kernel;
+    if (k === 'linear') return { type: 'linear' };
+    if (k === 'poly') return { type: 'poly', d: state.d };
+    if (k === 'rbf') return { type: 'rbf', gamma: state.gRbf };
+    return { type: 'sigmoid', gamma: state.gSig, r: state.r };
+  };
+
+  /* ---------- formatação ---------- */
+  const num = (v, d = 2) => {
+    const s = Math.abs(v).toLocaleString('pt-BR', { minimumFractionDigits: d, maximumFractionDigits: d });
+    return (v < 0 && Number(Math.abs(v).toFixed(d)) !== 0 ? '−' : '') + s;
+  };
+  const three = v => Number(v.toPrecision(3));
+  const sigBR = v => {
+    if (v !== 0 && Math.abs(v) < 1e-3) return v.toExponential(2).replace('.', ',').replace('e-', 'e−').replace('-', '−');
+    return Math.abs(v) >= 1000 ? Math.round(v).toLocaleString('pt-BR') : three(v).toLocaleString('pt-BR', { maximumSignificantDigits: 3 }).replace('-', '−');
+  };
+  const coord = p => `(${num(p.x)}; ${num(p.y)})`;
+  const className = c => c === 1 ? 'azul' : 'roxo';
+
+  /* ---------- eixos ---------- */
+  function drawAxes() {
+    for (const id of ['frame', 'cliprect']) attrs($(id), { x: ML, y: MT, width: PW, height: PH });
+    const g = $('axes');
+    for (let v = -1; v <= 3; v++) {
+      attrs(el('line', 'tick', g), { x1: px(v), x2: px(v), y1: MT + PH, y2: MT + PH + 7 });
+      const t = el('text', 'ticklab', g);
+      attrs(t, { x: px(v), y: MT + PH + 25, 'text-anchor': 'middle' });
+      t.textContent = String(v).replace('-', '−');
+      attrs(el('line', 'tick', g), { y1: py(v), y2: py(v), x1: ML - 7, x2: ML });
+      const u = el('text', 'ticklab', g);
+      attrs(u, { x: ML - 12, y: py(v) + 5.5, 'text-anchor': 'end' });
+      u.textContent = String(v).replace('-', '−');
+    }
+    const axisLabel = (x, y, n, rot) => {
+      const t = el('text', 'axlab', g);
+      attrs(t, { x, y, 'text-anchor': 'middle' });
+      if (rot) t.setAttribute('transform', `rotate(-90 ${x} ${y})`);
+      t.textContent = 'X';
+      const s = el('tspan', '', t);
+      attrs(s, { dy: 6, 'font-size': 15, 'font-style': 'normal' });
+      s.textContent = n;
+    };
+    axisLabel(ML + PW/2, MT + PH + 56, '1');
+    axisLabel(14, MT + PH/2, '2', true);
+  }
+
+  /* ---------- grade e curvas de nível ---------- */
+  const NX = 106, NY = 111, HX = (X1-X0)/(NX-1), HY = (Y1-Y0)/(NY-1);
+  const F = new Float64Array(NX*NY);
+
+  // Curvas de nível por marching squares, com os segmentos ligados em polilinhas (o tracejado depende disso).
+  function contour(level) {
+    const adj = new Map(), pos = new Map();
+    const link = (a, b) => {
+      if (!adj.has(a)) adj.set(a, []);
+      if (!adj.has(b)) adj.set(b, []);
+      adj.get(a).push(b); adj.get(b).push(a);
+    };
+    const hKey = (i, j) => 2*(j*NX + i), vKey = (i, j) => 2*(j*NX + i) + 1;
+    const hPos = (i, j) => {
+      const k = hKey(i, j);
+      if (!pos.has(k)) { const a = F[j*NX+i], b = F[j*NX+i+1], t = (level-a)/(b-a); pos.set(k, [X0 + (i+t)*HX, Y0 + j*HY]); }
+      return k;
+    };
+    const vPos = (i, j) => {
+      const k = vKey(i, j);
+      if (!pos.has(k)) { const a = F[j*NX+i], b = F[(j+1)*NX+i], t = (level-a)/(b-a); pos.set(k, [X0 + i*HX, Y0 + (j+t)*HY]); }
+      return k;
+    };
+    for (let j = 0; j < NY-1; j++) for (let i = 0; i < NX-1; i++) {
+      const a = F[j*NX+i], b = F[j*NX+i+1], c = F[(j+1)*NX+i+1], d = F[(j+1)*NX+i];
+      const m = (a >= level ? 1 : 0) | (b >= level ? 2 : 0) | (c >= level ? 4 : 0) | (d >= level ? 8 : 0);
+      if (m === 0 || m === 15) continue;
+      const B = () => hPos(i, j), R = () => vPos(i+1, j), T = () => hPos(i, j+1), L = () => vPos(i, j);
+      switch (m) {
+        case 1: case 14: link(L(), B()); break;
+        case 2: case 13: link(B(), R()); break;
+        case 4: case 11: link(R(), T()); break;
+        case 8: case 7: link(T(), L()); break;
+        case 3: case 12: link(L(), R()); break;
+        case 6: case 9: link(B(), T()); break;
+        case 5: case 10: {
+          const center = (a+b+c+d)/4 >= level;
+          if ((m === 5) === center) { link(L(), T()); link(B(), R()); }
+          else { link(L(), B()); link(R(), T()); }
+          break;
+        }
+      }
+    }
+    const seen = new Set();
+    let d = '';
+    const walk = start => {
+      let cur = start, prev = -1, first = true;
+      const p0 = pos.get(start);
+      d += `M${px(p0[0]).toFixed(1)} ${py(p0[1]).toFixed(1)}`;
+      seen.add(cur);
+      for (;;) {
+        const next = adj.get(cur).find(v => v !== prev && !seen.has(v));
+        if (next === undefined) {
+          if (!first && adj.get(cur).includes(start) && prev !== start) d += 'Z';
+          return;
+        }
+        const q = pos.get(next);
+        d += `L${px(q[0]).toFixed(1)} ${py(q[1]).toFixed(1)}`;
+        seen.add(next); prev = cur; cur = next; first = false;
+      }
+    };
+    for (const [k, v] of adj) if (v.length === 1 && !seen.has(k)) walk(k);
+    for (const k of adj.keys()) if (!seen.has(k)) walk(k);
+    return d;
+  }
+
+  /* ---------- tela: pontinhos e faixa ---------- */
+  const cv = $('cv'), ctx = cv.getContext('2d');
+  const off = document.createElement('canvas');
+  off.width = 2*NX - 1; off.height = 2*NY - 1;
+  const octx = off.getContext('2d'), img = octx.createImageData(off.width, off.height);
+  let colors = null;
+  const hex = h => { const v = h.trim().replace('#', ''); return [parseInt(v.slice(0,2),16), parseInt(v.slice(2,4),16), parseInt(v.slice(4,6),16)]; };
+  function readColors() {
+    const cs = getComputedStyle(document.documentElement), g = n => cs.getPropertyValue(n).trim();
+    colors = { plot: g('--plot'), bd: g('--blue-dot'), pd: g('--pink-dot'), b: hex(g('--blue')), p: hex(g('--pink')) };
+  }
+  function fitCanvas() {
+    const r = cv.getBoundingClientRect(), dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = Math.max(1, Math.round(r.width*dpr)), h = Math.max(1, Math.round(r.height*dpr));
+    if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; return true; }
+    return false;
+  }
+  function paint() {
+    fitCanvas();
+    const W = cv.width, H = cv.height;
+    ctx.fillStyle = colors.plot;
+    ctx.fillRect(0, 0, W, H);
+    if (state.show.reg) {
+      const scale = W / PW, r = 1.45*scale;
+      for (const sign of [1, -1]) {
+        ctx.fillStyle = sign > 0 ? colors.bd : colors.pd;
+        ctx.beginPath();
+        for (let j = 1; j < NY; j += 2) for (let i = 1; i < NX; i += 2) {
+          if ((F[j*NX+i] >= 0) !== (sign > 0)) continue;
+          const x = i/(NX-1)*W, y = H - j/(NY-1)*H;
+          ctx.moveTo(x + r, y);
+          ctx.arc(x, y, r, 0, 6.2832);
+        }
+        ctx.fill();
+      }
+    }
+    if (state.show.margin) {
+      const w = off.width, h = off.height, data = img.data;
+      const A = 77;
+      for (let r = 0, q = 0; r < h; r++) {
+        const gy = (h - 1 - r)/2, j0 = Math.floor(gy), j1 = Math.min(j0 + 1, NY-1), ty = gy - j0;
+        for (let c = 0; c < w; c++, q += 4) {
+          const gx = c/2, i0 = Math.floor(gx), i1 = Math.min(i0 + 1, NX-1), tx = gx - i0;
+          const v = (1-ty)*((1-tx)*F[j0*NX+i0] + tx*F[j0*NX+i1]) + ty*((1-tx)*F[j1*NX+i0] + tx*F[j1*NX+i1]);
+          if (v > -1 && v < 1) {
+            const col = v >= 0 ? colors.b : colors.p;
+            data[q] = col[0]; data[q+1] = col[1]; data[q+2] = col[2]; data[q+3] = A;
+          } else data[q+3] = 0;
+        }
+      }
+      octx.putImageData(img, 0, 0);
+      ctx.imageSmoothingEnabled = true;
+      ctx.drawImage(off, 0, 0, W, H);
+    }
+  }
+
+  /* ---------- pontos ---------- */
+  const coarse = window.matchMedia && matchMedia('(pointer: coarse)').matches;
+  let nodes = [];
+  function buildPoints() {
+    const g = $('layer-points');
+    g.textContent = '';
+    nodes = state.points.map((p, i) => {
+      const n = el('g', 'pt ' + (p.c === 1 ? 'b' : 'p'), g);
+      attrs(n, { tabindex: 0, role: 'button', 'data-i': i });
+      const ring = el('circle', 'ring', n); ring.setAttribute('r', 12.5);
+      const dot = el('circle', 'dot', n);
+      const cross = el('path', 'cross', n);
+      const hit = el('circle', 'hit', n); hit.setAttribute('r', coarse ? 26 : 17);
+      return { n, ring, dot, cross, hit };
+    });
+  }
+
+  /* ---------- desenho ---------- */
+  function computeAndDraw() {
+    const pts = state.points, k = kernelSpec();
+    const s = state.sol = Solver.solve(pts, k, state.cost);
+    Solver.evalGrid(pts, s, k, F, NX, NY, X0, HX, Y0, HY);
+    // Com w = 0, f é constante: evita que ruído numérico desenhe curvas falsas.
+    if (s.M === null && state.kernel !== 'sigmoid') F.fill(s.b);
+    paint();
+
+    const d0 = contour(0);
+    $('hyper').setAttribute('d', d0);
+    state.hasBoundary = d0.length > 0;
+    const on = (id, v) => { $(id).style.display = v ? '' : 'none'; };
+    on('layer-margins', state.show.margin);
+    if (state.show.margin) {
+      $('marg-b').setAttribute('d', contour(1));
+      $('marg-p').setAttribute('d', contour(-1));
+    }
+
+    // Fronteira antes do arraste: só aparece se a solução realmente mudou.
+    let moved = false;
+    if (state.F0) {
+      for (let q = 0; q < F.length; q += 3) if (Math.abs(F[q] - state.F0[q]) > 1e-3) { moved = true; break; }
+    }
+    on('ghost', moved);
+    if (moved) $('ghost').setAttribute('d', state.ghostD);
+    state.ghostShown = moved;
+
+    const svset = new Set(s.sv), wrong = new Set(s.wrong);
+    pts.forEach((p, i) => {
+      const nd = nodes[i], x = px(p.x), y = py(p.y), active = i === state.drag || i === state.sel;
+      attrs(nd.dot, { cx: x, cy: y, r: active ? 9 : 7.5 });
+      attrs(nd.ring, { cx: x, cy: y });
+      attrs(nd.hit, { cx: x, cy: y });
+      nd.ring.style.display = svset.has(i) && state.show.sv ? '' : 'none';
+      if (wrong.has(i)) { const c = 3.8; nd.cross.setAttribute('d', `M${x-c} ${y-c}L${x+c} ${y+c}M${x+c} ${y-c}L${x-c} ${y+c}`); nd.cross.style.display = ''; }
+      else nd.cross.style.display = 'none';
+      nd.n.setAttribute('aria-label', `Ponto ${className(p.c)} em ${coord(p)}${svset.has(i) ? ', vetor suporte' : ''}`);
+    });
+    renderPanel();
+  }
+
+  let queued = false, lastOpts = {};
+  function render(opts = {}) {
+    Object.assign(lastOpts, opts);
+    renderControls(lastOpts);
+    if (queued) return;
+    queued = true;
+    requestAnimationFrame(() => { queued = false; lastOpts = {}; computeAndDraw(); });
+  }
+
+  /* ---------- controles ---------- */
+  function renderControls(opts) {
+    const k = state.kernel, g = k === 'rbf' ? state.gRbf : state.gSig;
+    const setNum = (id, v) => { if (document.activeElement !== $(id)) $(id).value = v; };
+    setNum('p-cost-n', three(state.cost));
+    if (opts.from !== 'cost') $('p-cost').value = Math.log10(state.cost);
+    setNum('p-d-n', state.d); $('p-d').value = state.d;
+    setNum('p-g-n', three(g));
+    if (opts.from !== 'g') $('p-g').value = Math.log10(g);
+    setNum('p-r-n', three(state.r));
+    if (opts.from !== 'r') $('p-r').value = state.r;
+    $('c-d').hidden = k !== 'poly';
+    $('c-g').hidden = k !== 'rbf' && k !== 'sigmoid';
+    $('c-r').hidden = k !== 'sigmoid';
+    document.querySelectorAll('#kernels button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.k === k)));
+
+    const dt = v => String(three(v));
+    const c = dt(state.cost);
+    const R = {
+      linear: `kernel = "linear"`,
+      poly: `kernel = "polynomial", degree = ${state.d}, gamma = 1, coef0 = 1`,
+      rbf: `kernel = "radial", gamma = ${dt(state.gRbf)}`,
+      sigmoid: `kernel = "sigmoid", gamma = ${dt(state.gSig)}, coef0 = ${dt(state.r)}`,
+    }[k];
+    const P = {
+      linear: `kernel="linear"`,
+      poly: `kernel="poly", degree=${state.d}, gamma=1, coef0=1`,
+      rbf: `kernel="rbf", gamma=${dt(state.gRbf)}`,
+      sigmoid: `kernel="sigmoid", gamma=${dt(state.gSig)}, coef0=${dt(state.r)}`,
+    }[k];
+    $('code-r').textContent = `svm(y ~ ., data = dados, ${R}, cost = ${c}, scale = FALSE)`;
+    $('code-py').textContent = `SVC(${P}, C=${c})`;
+    const G = sigBR(g);
+    $('v-kernel').innerHTML = {
+      linear: `<i>K</i>(<i>x<sub>i</sub></i>, <i>x<sub>i′</sub></i>) = Σ<sub><i>j</i></sub> <i>x<sub>ij</sub></i> <i>x<sub>i′j</sub></i> &nbsp;(9.21)`,
+      poly: `<i>K</i>(<i>x<sub>i</sub></i>, <i>x<sub>i′</sub></i>) = (1 + Σ<sub><i>j</i></sub> <i>x<sub>ij</sub></i> <i>x<sub>i′j</sub></i>)<sup>${state.d}</sup> &nbsp;(9.22)`,
+      rbf: `<i>K</i>(<i>x<sub>i</sub></i>, <i>x<sub>i′</sub></i>) = exp(−${G} Σ<sub><i>j</i></sub> (<i>x<sub>ij</sub></i> − <i>x<sub>i′j</sub></i>)<sup>2</sup>) &nbsp;(9.24)`,
+      sigmoid: `<i>K</i>(<i>x<sub>i</sub></i>, <i>x<sub>i′</sub></i>) = tanh(${G} Σ<sub><i>j</i></sub> <i>x<sub>ij</sub></i> <i>x<sub>i′j</sub></i> ${state.r < 0 ? '−' : '+'} ${sigBR(Math.abs(state.r))})<br><span class="note" style="font-family:var(--ui)">Este kernel e o parâmetro <i>r</i> não estão no capítulo 9 do livro.</span>`,
+    }[k];
+  }
+
+  const HINT = {
+    linear: 'O kernel linear reproduz o classificador de vetor suporte. Em dados não lineares, a reta não acompanha a forma das classes.',
+    poly: 'Aumente o grau d: a fronteira ganha flexibilidade e, com cost alto, tende a se ajustar demais.',
+    rbf: 'Aumente γ: cada ponto passa a influenciar só a própria vizinhança e a fronteira se fecha em torno dos pontos.',
+    sigmoid: 'O kernel sigmoide nem sempre é positivo semidefinido: a solução pode ser instável e depender da ordem dos pontos. Experimente γ pequeno e r ≤ 0.',
+  };
+
+  function renderPanel() {
+    const s = state.sol, pts = state.points;
+    const notPSD = s.M === null && state.kernel === 'sigmoid';
+    $('v-m').textContent = s.M !== null ? (s.M >= 1000 ? sigBR(s.M) : num(s.M, 3)) : (notPSD ? 'indefinida' : '∞');
+    $('v-eq').hidden = notPSD;
+    $('v-m').style.fontSize = notPSD ? '.55em' : '';
+    $('pill').textContent = `Erros de treino: ${s.wrong.length} de ${pts.length}`;
+    $('v-svlab').textContent = `Vetores suporte: ${s.sv.length}`;
+    $('v-c1').textContent = s.margin.length;
+    $('v-c2').textContent = s.inside.length;
+    $('v-c3').textContent = s.wrong.length;
+    $('v-spendlab').innerHTML = s.sumEps > 0 ? `Orçamento gasto: <span class="keep">Σϵ = ${num(s.sumEps)} de C = ${num(s.sumEps)}</span>` : 'Orçamento: nenhuma violação';
+    const spendOrder = pts.map((p, i) => i).filter(i => s.eps[i] > 0).sort((a, b) => s.eps[b] - s.eps[a]);
+    $('v-spend').innerHTML = spendOrder.map(i => `<span class="${pts[i].c === 1 ? 'b' : 'p'}" style="width:${(s.eps[i]/s.sumEps*100).toFixed(2)}%" title="${className(pts[i].c)} ${coord(pts[i])}: ϵ = ${num(s.eps[i], 3)}"></span>`).join('');
+    $('v-budget').innerHTML = `Este <code>cost</code> equivale ao orçamento <span class="math"><i>C</i></span> = ${num(s.sumEps)} das eqs. (9.12)–(9.15). O argumento <code>C</code> do <code>SVC</code> é o <code>cost</code>, não esse orçamento.`;
+    let beta = `β<sub>0</sub> = ${num(s.b, 3)}; <i>S</i> é o conjunto dos vetores suporte; α<sub><i>i</i></sub> &gt; 0 para azul e α<sub><i>i</i></sub> &lt; 0 para roxo.`;
+    $('v-beta').innerHTML = beta;
+    const sorted = [...s.sv].sort((a, b) => s.alpha[b] - s.alpha[a]);
+    $('v-sv').innerHTML = sorted.map(i => {
+      const p = pts[i];
+      return `<li><span class="chip ${p.c === 1 ? 'b' : 'p'}"></span><span>${coord(p)}</span><span class="cls">α = ${sigBR(s.alpha[i]*p.c)}</span><span class="cls">ϵ = ${num(s.eps[i])}</span></li>`;
+    }).join('');
+    $('svbox').hidden = !s.sv.length;
+
+    const say = $('say');
+    say.className = 'say';
+    if (!s.converged) {
+      say.className = 'say warn';
+      say.textContent = 'O otimizador parou antes de convergir, então esta solução é aproximada. Reduza cost ou mude os parâmetros do kernel.';
+      return;
+    }
+    if (state.flash) { say.textContent = state.flash; return; }
+    const i = state.drag >= 0 ? state.drag : state.sel;
+    if (i < 0 || !pts[i]) {
+      if (!state.hasBoundary) {
+        say.textContent = (state.kernel === 'linear' && s.M === null ? 'Aqui w = 0: nenhuma reta ajuda, e todo o plano recebe a classe majoritária. Experimente outro kernel.' : 'Nenhuma fronteira cruza o gráfico: todo o plano recebe a mesma classe. Mude o kernel ou os parâmetros.');
+      } else {
+        say.textContent = state.tool === 'move' ? HINT[state.kernel]
+          : state.tool === 'add' ? `Clique no gráfico para adicionar um ponto ${className(state.addClass)}.`
+          : 'Clique em um ponto para removê-lo.';
+      }
+      return;
+    }
+    const p = pts[i], yf = s.vals[i];
+    const margin = s.margin.includes(i);
+    const msg = s.wrong.includes(i) ? 'Lado errado da fronteira: vetor suporte classificado incorretamente.'
+      : s.inside.includes(i) ? 'Dentro da margem, no lado certo: vetor suporte.'
+      : margin ? 'Sobre a margem: vetor suporte.'
+      : 'Fora da margem: α = 0, então movê-lo não muda a solução até encostar na faixa.';
+    const yfText = `<span class="math"><i>y f</i>(<i>x</i>)</span> = ${num(yf, 3)}, `;
+    say.innerHTML = `<span class="chip ${p.c === 1 ? 'b' : 'p'}"></span><span><span class="num">${coord(p)}, ${yfText}α = ${s.sv.includes(i) ? sigBR(s.alpha[i]*p.c) : '0'}.</span> ${msg}${state.ghostShown ? ' A linha cinza é a fronteira antes do arraste.' : ''}</span>`;
+  }
+
+  /* ---------- interação com os pontos ---------- */
+  function toData(ev) {
+    const m = svg.getScreenCTM().inverse();
+    const q = new DOMPoint(ev.clientX, ev.clientY).matrixTransform(m);
+    return { sx: q.x, sy: q.y, x: X0 + (q.x - ML)/S, y: Y1 - (q.y - MT)/S };
+  }
+  const PAD = 0.03;
+  const clampX = x => Math.max(X0 + PAD, Math.min(X1 - PAD, x));
+  const clampY = y => Math.max(Y0 + PAD, Math.min(Y1 - PAD, y));
+  const inPlot = d => d.x >= X0 && d.x <= X1 && d.y >= Y0 && d.y <= Y1;
+
+  function nearestPoint(d) {
+    const R = coarse ? 26 : 17;
+    let best = -1, bd = R;
+    state.points.forEach((p, i) => { const v = Math.hypot(px(p.x) - d.sx, py(p.y) - d.sy); if (v < bd) { bd = v; best = i; } });
+    return best;
+  }
+  function startDrag(i, ev) {
+    state.drag = i; state.sel = i; state.flash = '';
+    state.F0 = F.slice();
+    state.ghostD = $('hyper').getAttribute('d') || '';
+    svg.classList.add('dragging');
+    try { svg.setPointerCapture(ev.pointerId); } catch (e) {}
+    ev.preventDefault();
+  }
+  function removePoint(i) {
+    const c = state.points[i].c;
+    if (state.points.filter(p => p.c === c).length === 1) {
+      state.flash = `A classe ${className(c)} precisa de pelo menos um ponto.`;
+      render();
+      return;
+    }
+    state.points.splice(i, 1);
+    state.sel = -1; state.flash = '';
+    buildPoints();
+    render();
+  }
+  svg.addEventListener('pointerdown', ev => {
+    if (ev.button !== 0) return;
+    const d = toData(ev), i = nearestPoint(d);
+    if (state.tool === 'move' && i >= 0) { startDrag(i, ev); nodes[i].n.focus({ preventScroll: true }); render(); }
+    else if (state.tool === 'remove' && i >= 0) { ev.preventDefault(); removePoint(i); }
+    else if (state.tool === 'add' && inPlot(d)) {
+      state.points.push({ x: clampX(d.x), y: clampY(d.y), c: state.addClass });
+      buildPoints();
+      startDrag(state.points.length - 1, ev);
+      render();
+    }
+  });
+  svg.addEventListener('pointermove', ev => {
+    if (state.drag < 0) {
+      if (ev.pointerType === 'mouse') {
+        const i = nearestPoint(toData(ev));
+        if (i !== state.sel && (i >= 0 || state.sel >= 0)) { state.sel = i; render(); }
+      }
+      return;
+    }
+    const d = toData(ev), p = state.points[state.drag];
+    p.x = clampX(d.x); p.y = clampY(d.y);
+    state.flash = '';
+    render();
+  });
+  const endDrag = () => {
+    if (state.drag < 0) return;
+    state.drag = -1; state.F0 = null; state.ghostD = '';
+    svg.classList.remove('dragging');
+    render();
+  };
+  svg.addEventListener('pointerup', endDrag);
+  svg.addEventListener('pointercancel', endDrag);
+  svg.addEventListener('touchmove', ev => { if (state.drag >= 0) ev.preventDefault(); }, { passive: false });
+  svg.addEventListener('pointerleave', () => { if (state.drag < 0 && state.sel >= 0 && document.activeElement?.dataset?.i === undefined) { state.sel = -1; render(); } });
+  svg.addEventListener('keydown', ev => {
+    const a = ev.target.getAttribute?.('data-i');
+    if (a === null || a === undefined) return;
+    const i = Number(a);
+    if (!state.points[i]) return;
+    const step = ev.shiftKey ? 0.25 : 0.05, p = state.points[i];
+    const dir = { ArrowLeft: [-1,0], ArrowRight: [1,0], ArrowUp: [0,1], ArrowDown: [0,-1] }[ev.key];
+    if (dir) {
+      p.x = clampX(p.x + dir[0]*step); p.y = clampY(p.y + dir[1]*step);
+      state.sel = i; state.flash = '';
+      ev.preventDefault();
+      render();
+    } else if (ev.key === 'Delete' || ev.key === 'Backspace') {
+      ev.preventDefault();
+      removePoint(i);
+    }
+  });
+  svg.addEventListener('focusin', ev => {
+    const a = ev.target.getAttribute?.('data-i');
+    if (a !== null && a !== undefined && state.drag < 0) { state.sel = Number(a); render(); }
+  });
+
+  /* ---------- controles: eventos ---------- */
+  const parse = v => parseFloat(String(v).replace(',', '.'));
+  const bindLog = (rangeId, numId, get, set, lo, hi, from) => {
+    $(rangeId).addEventListener('input', e => { set(three(Math.pow(10, Number(e.target.value)))); state.flash = ''; render({ from }); });
+    $(numId).addEventListener('input', e => {
+      const v = parse(e.target.value);
+      if (!Number.isFinite(v) || v < lo || v > hi) return;
+      set(v); state.flash = ''; render();
+    });
+    $(numId).addEventListener('blur', () => { $(numId).value = three(get()); });
+  };
+  bindLog('p-cost', 'p-cost-n', () => state.cost, v => { state.cost = v; }, 1e-3, 1e5, 'cost');
+  bindLog('p-g', 'p-g-n', () => state.kernel === 'rbf' ? state.gRbf : state.gSig,
+    v => { if (state.kernel === 'rbf') state.gRbf = v; else state.gSig = v; }, 1e-3, 500, 'g');
+  $('p-d').addEventListener('input', e => { state.d = Number(e.target.value); render(); });
+  $('p-d-n').addEventListener('input', e => {
+    const v = parse(e.target.value);
+    if (Number.isInteger(v) && v >= 1 && v <= 5) { state.d = v; render(); }
+  });
+  $('p-d-n').addEventListener('blur', () => { $('p-d-n').value = state.d; });
+  $('p-r').addEventListener('input', e => { state.r = Number(e.target.value); render({ from: 'r' }); });
+  $('p-r-n').addEventListener('input', e => {
+    const v = parse(e.target.value);
+    if (Number.isFinite(v) && v >= -5 && v <= 5) { state.r = v; render(); }
+  });
+  $('p-r-n').addEventListener('blur', () => { $('p-r-n').value = three(state.r); });
+
+  document.querySelectorAll('#kernels button').forEach(b => b.addEventListener('click', () => {
+    state.kernel = b.dataset.k; state.flash = ''; state.sel = -1;
+    render();
+  }));
+
+  const toolButtons = [...document.querySelectorAll('.bar .seg button')];
+  toolButtons.forEach(b => b.addEventListener('click', () => {
+    state.tool = b.dataset.tool;
+    if (b.dataset.cls) state.addClass = Number(b.dataset.cls);
+    toolButtons.forEach(o => o.setAttribute('aria-pressed', String(o === b)));
+    svg.setAttribute('data-tool', state.tool);
+    state.sel = -1; state.flash = '';
+    render();
+  }));
+  $('t-addb').setAttribute('aria-label', 'Adicionar ponto azul');
+  $('t-addp').setAttribute('aria-label', 'Adicionar ponto roxo');
+
+  function setData(name) {
+    state.dataset = name;
+    state.points = loadData(name);
+    state.sel = -1; state.drag = -1; state.F0 = null; state.flash = '';
+    buildPoints();
+    render();
+  }
+  $('dataset').addEventListener('change', e => setData(e.target.value));
+  $('reset').addEventListener('click', () => setData(state.dataset));
+
+  const copy = (btn, id) => $(btn).addEventListener('click', () => {
+    const text = $(id).textContent, b = $(btn);
+    const done = () => { b.textContent = 'Copiado'; setTimeout(() => { b.textContent = 'Copiar'; }, 1400); };
+    const fallback = () => {
+      const r = document.createRange(); r.selectNodeContents($(id));
+      const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
+      b.textContent = 'Selecionado'; setTimeout(() => { b.textContent = 'Copiar'; }, 1400);
+    };
+    try { navigator.clipboard.writeText(text).then(done, fallback); } catch (e) { fallback(); }
+  });
+  copy('copy-r', 'code-r');
+  copy('copy-py', 'code-py');
+
+  for (const [id, key] of [['o-margin','margin'],['o-sv','sv'],['o-reg','reg']]) {
+    $(id).addEventListener('change', e => { state.show[key] = e.target.checked; render(); });
+  }
+
+  // Tema e tamanho
+  const refresh = () => { readColors(); render(); };
+  if (window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', refresh);
+  new MutationObserver(refresh).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+  if (window.ResizeObserver) new ResizeObserver(() => { if (colors && state.sol && fitCanvas()) paint(); }).observe(cv);
+
+  readColors();
+  drawAxes();
+  buildPoints();
+  renderControls({});
+  computeAndDraw();
+})();
+</script>
+</body>
+</html>

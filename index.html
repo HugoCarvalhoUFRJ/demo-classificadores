@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="description" content="Apps interativos para aprender o classificador de margem máxima, o classificador de vetor suporte e o SVM com kernels.">
+<title>SVM Interativo</title>
+<script>
+try { const t = localStorage.getItem('svm-theme'); if (t === 'dark' || t === 'light') document.documentElement.setAttribute('data-theme', t); } catch (e) {}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@500;600&family=STIX+Two+Text:wght@600&display=swap" media="print" onload="this.media=\'all\'">
+<style>
+:root {
+  --paper: #fbfbfe; --plot: #ffffff; --ink: #15151f; --muted: #5d5d72; --rule: #d8d8e6; --tint: #eeeef6; --blue: #1596e4;
+  --math: "STIX Two Text", "Latin Modern Roman", "Times New Roman", serif;
+  --ui: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --paper: #12131b; --plot: #171823; --ink: #eeeef6; --muted: #a2a2b8; --rule: #33354a; --tint: #23253a; --blue: #4dbbf7; color-scheme: dark; }
+}
+:root[data-theme="dark"] { --paper: #12131b; --plot: #171823; --ink: #eeeef6; --muted: #a2a2b8; --rule: #33354a; --tint: #23253a; --blue: #4dbbf7; color-scheme: dark; }
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body { display: flex; flex-direction: column; background: var(--paper); color: var(--ink); font: 500 15px/1.3 var(--ui); }
+[hidden] { display: none !important; }
+.top {
+  flex: none; display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0 22px;
+  padding-top: max(8px, env(safe-area-inset-top, 0px));
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  border-bottom: 1px solid var(--rule); background: var(--plot);
+}
+.brand { font: 600 1.15rem/1 var(--math); margin: 0; padding-block: 9px 11px; white-space: nowrap; }
+[role="tablist"] { display: flex; gap: 2px; min-width: 0; margin-bottom: -1px; }
+[role="tab"] {
+  appearance: none; background: transparent; color: var(--muted); font: inherit; cursor: pointer;
+  border: 1px solid transparent; border-bottom: 0; border-radius: 7px 7px 0 0; padding: 10px 14px 11px; white-space: nowrap;
+}
+[role="tab"]:hover { color: var(--ink); background: var(--tint); }
+[role="tab"][aria-selected="true"] { color: var(--ink); background: var(--paper); border-color: var(--rule); box-shadow: inset 0 2.5px 0 var(--ink); }
+[role="tab"]:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }
+.theme {
+  margin-left: auto; align-self: center; margin-block: 2px 6px; display: inline-flex; align-items: center; gap: 7px; flex: none;
+  font: 500 13.5px/1 var(--ui); color: var(--ink); background: var(--plot); cursor: pointer;
+  border: 1px solid var(--rule); border-radius: 7px; padding: 7px 10px; min-height: 34px;
+}
+.theme:hover { background: var(--tint); }
+.theme:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.theme svg { display: block; flex: none; }
+.panels { flex: 1 1 auto; min-height: 0; position: relative; }
+iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; background: var(--paper); }
+noscript p { padding: 16px; }
+.credit {
+  flex: none; color: var(--muted); font: 400 12.5px/1.35 var(--ui); border-top: 1px solid var(--rule); background: var(--plot);
+  padding-top: 6px; padding-bottom: max(6px, env(safe-area-inset-bottom, 0px));
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.credit p { margin: 0; overflow-wrap: anywhere; }
+.credit a { color: inherit; }
+.credit a:hover { color: var(--ink); }
+.credit a:focus-visible, .credit summary:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.credit-small { display: none; }
+.credit summary { cursor: pointer; }
+.credit details p { margin-top: 5px; }
+@media (max-width: 820px) { .brand { display: none; } }
+@media (max-width: 640px) {
+  .top { flex-wrap: nowrap; gap: 6px; }
+  .credit-full { display: none; }
+  .credit-small { display: block; }
+  [role="tablist"] { flex: 1 1 0; }
+  [role="tab"] { flex: 1 1 0; padding: 10px 4px 11px; font-size: 13.5px; white-space: normal; }
+  .theme { padding: 7px; min-width: 38px; min-height: 38px; justify-content: center; }
+  .theme span { display: none; }
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <p class="brand">SVM Interativo</p>
+  <div role="tablist" aria-label="Apps" id="tabs">
+    <button role="tab" id="tab-margem-maxima" aria-controls="panels" aria-selected="false" data-app="margem-maxima" data-title="Margem máxima">Margem máxima</button>
+    <button role="tab" id="tab-vetor-suporte" aria-controls="panels" aria-selected="false" data-app="vetor-suporte" data-title="Vetor suporte">Vetor suporte</button>
+    <button role="tab" id="tab-svm-kernels" aria-controls="panels" aria-selected="false" data-app="svm-kernels" data-title="SVM com kernels">SVM com kernels</button>
+  </div>
+  <button type="button" class="theme" id="theme"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path id="theme-icon"></path></svg><span id="theme-label"></span></button>
+</header>
+<main class="panels" id="panels">
+  <noscript><p>Os apps precisam de JavaScript. <a href="margem-maxima.html">Margem máxima</a> · <a href="vetor-suporte.html">Vetor suporte</a> · <a href="svm-kernels.html">SVM com kernels</a></p></noscript>
+</main>
+<footer class="credit">
+  <p class="credit-full">Estes apps foram desenvolvidos em sala de aula, a pedido dos alunos, para visualizar melhor os classificadores, usando IA: Claude, Opus 5.5 no esforço alto. Disciplina Aprendizagem de Máquina I, da UFRJ, ministrada pelo Prof. Hugo Carvalho. Materiais didáticos do curso: <a href="https://github.com/HugoCarvalhoUFRJ/ap-maq" target="_blank" rel="noopener">github.com/HugoCarvalhoUFRJ/ap-maq</a>. A notação é a mesma do livro <a href="https://www.statlearning.com/" target="_blank" rel="noopener"><cite>An Introduction to Statistical Learning</cite></a>.</p>
+  <details class="credit-small"><summary>Sobre estes apps</summary><p>Estes apps foram desenvolvidos em sala de aula, a pedido dos alunos, para visualizar melhor os classificadores, usando IA: Claude, Opus 5.5 no esforço alto. Disciplina Aprendizagem de Máquina I, da UFRJ, ministrada pelo Prof. Hugo Carvalho. Materiais didáticos do curso: <a href="https://github.com/HugoCarvalhoUFRJ/ap-maq" target="_blank" rel="noopener">github.com/HugoCarvalhoUFRJ/ap-maq</a>. A notação é a mesma do livro <a href="https://www.statlearning.com/" target="_blank" rel="noopener"><cite>An Introduction to Statistical Learning</cite></a>.</p></details>
+</footer>
+<script>
+(() => {
+  const tabs = [...document.querySelectorAll('[role="tab"]')], panels = document.getElementById('panels');
+  const frames = new Map();
+  const names = tabs.map(t => t.dataset.app);
+
+  // Tema: segue o sistema até a primeira escolha, que depois fica guardada neste navegador.
+  const root = document.documentElement, dark = matchMedia('(prefers-color-scheme: dark)');
+  const SUN = 'M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6 7 7M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z';
+  const MOON = 'M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z';
+  const current = () => root.getAttribute('data-theme') || (dark.matches ? 'dark' : 'light');
+  function sendTheme(f) { if (f.contentWindow) f.contentWindow.postMessage({ svmTheme: root.getAttribute('data-theme') }, '*'); }
+  function paintThemeButton() {
+    const next = current() === 'dark' ? 'claro' : 'escuro', b = document.getElementById('theme');
+    document.getElementById('theme-label').textContent = 'Modo ' + next;
+    document.getElementById('theme-icon').setAttribute('d', next === 'claro' ? SUN : MOON);
+    b.setAttribute('aria-label', 'Mudar para o modo ' + next);
+    b.title = 'Mudar para o modo ' + next;
+  }
+  document.getElementById('theme').addEventListener('click', () => {
+    const t = current() === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', t);
+    try { localStorage.setItem('svm-theme', t); } catch (e) {}
+    frames.forEach(sendTheme);
+    paintThemeButton();
+  });
+  dark.addEventListener('change', paintThemeButton);
+  paintThemeButton();
+  // Cada app carrega na primeira visita e fica guardado, então trocar de guia não perde os pontos arrastados.
+  function show(name, push) {
+    if (!names.includes(name)) name = names[0];
+    const tab = tabs[names.indexOf(name)];
+    if (!frames.has(name)) {
+      const f = document.createElement('iframe');
+      f.src = name + '.html';
+      f.title = tab.dataset.title;
+      f.id = 'frame-' + name;
+      f.addEventListener('load', () => sendTheme(f));
+      panels.appendChild(f);
+      frames.set(name, f);
+    }
+    for (const [n, f] of frames) f.hidden = n !== name;
+    tabs.forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      t.tabIndex = on ? 0 : -1;
+    });
+    document.title = tab.dataset.title + ' · SVM Interativo';
+    if (push && location.hash !== '#' + name) history.pushState(null, '', '#' + name);
+  }
+  tabs.forEach((t, i) => {
+    t.addEventListener('click', () => show(t.dataset.app, true));
+    t.addEventListener('keydown', e => {
+      const d = { ArrowRight: 1, ArrowLeft: -1 }[e.key];
+      let j = null;
+      if (d) j = (i + d + tabs.length) % tabs.length;
+      else if (e.key === 'Home') j = 0;
+      else if (e.key === 'End') j = tabs.length - 1;
+      if (j === null) return;
+      e.preventDefault();
+      show(tabs[j].dataset.app, true);
+      tabs[j].focus();
+    });
+  });
+  const fromHash = () => show(location.hash.slice(1), false);
+  addEventListener('hashchange', fromHash);
+  addEventListener('popstate', fromHash);
+  fromHash();
+})();
+</script>
+</body>
+</html>
