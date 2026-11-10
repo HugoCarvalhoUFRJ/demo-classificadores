@@ -22,7 +22,7 @@ img{max-width:100%}
 <title>SVM com Kernels</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400&family=IBM+Plex+Sans:wght@400;500;600&family=STIX+Two+Text:ital,wght@0,400;0,600;1,400;1,600&display=swap" media="print" onload="this.media=\'all\'">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400&family=IBM+Plex+Sans:wght@400;500;600&family=STIX+Two+Text:ital,wght@0,400;0,600;1,400;1,600&display=swap" media="print" onload="this.media='all'">
 <style>
 /* Layout: o gráfico ocupa a tela como numa aula projetada, com kernel e parâmetros logo acima; à direita, a solução atual. */
 :root {
@@ -102,6 +102,20 @@ button:focus-visible, input:focus-visible, select:focus-visible, .svlist:focus-v
   background: var(--plot); border: 1px solid var(--rule); border-radius: 7px; padding: 7px; min-height: 34px;
 }
 .ctl input[type="range"] { flex: 1 1 auto; min-width: 60px; margin: 0; accent-color: var(--ink); height: 26px; }
+
+/* Controle do orçamento */
+.budget { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+.budget label { font: italic 400 1.15rem/1 var(--math); white-space: nowrap; }
+#c-num {
+  width: 5.2em; flex: none; font: 500 14px/1 var(--ui); font-variant-numeric: tabular-nums; color: var(--ink);
+  background: var(--plot); border: 1px solid var(--rule); border-radius: 7px; padding: 7px; min-height: 34px;
+}
+.sliderwrap { position: relative; flex: 1 1 220px; min-width: 0; padding-bottom: 7px; }
+#c-range { display: block; width: 100%; margin: 0; accent-color: var(--ink); height: 26px; }
+.floor { position: absolute; left: 8px; right: 8px; bottom: 0; height: 4px; border-radius: 2px; background: var(--rule); overflow: hidden; }
+.floor i { display: block; height: 100%; width: 0; background: var(--warn); }
+.cmax { color: var(--muted); font-size: 13.5px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+#c-usemin { border-color: var(--warn); color: var(--warn); }
 
 /* Narração do que está acontecendo no gráfico */
 .say {
@@ -211,7 +225,11 @@ code { font: 400 12.5px/1.45 var(--code); }
           <option value="parab">Dados: parábola</option>
           <option value="xor">Dados: XOR</option>
           <option value="moons">Dados: duas luas</option>
-          <option value="figure">Dados: figura do livro</option>
+          <option value="spiral">Dados: espirais</option>
+          <option value="board">Dados: tabuleiro</option>
+          <option value="overlap">Dados: nuvens muito sobrepostas</option>
+          <option value="unbal">Dados: classes desbalanceadas</option>
+          <option value="figure">Dados: Fig. 9.3 do livro</option>
         </select>
         <button id="reset">Restaurar dados</button>
       </div>
@@ -224,8 +242,19 @@ code { font: 400 12.5px/1.45 var(--code); }
       <button id="k-sigmoid" data-k="sigmoid" aria-pressed="false">Sigmoide</button>
     </div>
 
+    <div class="budget">
+      <label for="c-num">C =</label>
+      <input id="c-num" type="number" min="0" step="0.1" inputmode="decimal" aria-label="Orçamento C">
+      <div class="sliderwrap">
+        <input id="c-range" type="range" min="0" max="1000" step="1" aria-label="Orçamento C">
+        <div class="floor" title="Trecho laranja: valores de C sem solução para estes dados e este kernel"><i id="c-floor"></i></div>
+      </div>
+      <span class="cmax" id="c-max"></span>
+      <button id="c-zero">C = 0: margem rígida</button>
+      <button id="c-usemin" hidden></button>
+    </div>
+
     <div class="params">
-      <div class="ctl"><label class="word" for="p-cost-n">cost</label><input id="p-cost-n" type="number" min="0.001" step="any" inputmode="decimal"><input id="p-cost" type="range" min="-2" max="3" step="0.01" aria-label="cost"></div>
       <div class="ctl" id="c-d"><label for="p-d-n">d</label><input id="p-d-n" type="number" min="1" max="5" step="1"><input id="p-d" type="range" min="1" max="5" step="1" aria-label="Grau d"></div>
       <div class="ctl" id="c-g"><label for="p-g-n">γ</label><input id="p-g-n" type="number" min="0.001" step="any" inputmode="decimal"><input id="p-g" type="range" min="-2" max="2" step="0.01" aria-label="Gama"></div>
       <div class="ctl" id="c-r"><label for="p-r-n">r</label><input id="p-r-n" type="number" min="-5" max="5" step="any" inputmode="decimal"><input id="p-r" type="range" min="-5" max="5" step="0.05" aria-label="Constante r"></div>
@@ -275,7 +304,7 @@ code { font: 400 12.5px/1.45 var(--code); }
     </section>
 
     <section>
-      <p class="lab">Função de decisão, eq. (9.23)</p>
+      <p class="lab">Função de decisão, Eq. (9.23)</p>
       <p class="eq" id="v-kernel"></p>
       <p class="eq"><i>f</i>(<i>x</i>) = β<sub>0</sub> + Σ<sub><i>i</i>∈<i>S</i></sub> α<sub><i>i</i></sub> <i>K</i>(<i>x</i>, <i>x<sub>i</sub></i>)</p>
       <p class="note" id="v-beta"></p>
@@ -310,9 +339,10 @@ code { font: 400 12.5px/1.45 var(--code); }
 
 <script>
 /*SOLVER-START*/
-// Dual do SVM: min ½α'Qα − Σα, com Σαᵢyᵢ = 0 e 0 ≤ αᵢ ≤ cost.
-// Kernels positivos semidefinidos: pontos interiores (Mehrotra).
-// Sigmoide: pode não ser semidefinido, então usa o SMO do libsvm, que é o que e1071 e scikit-learn executam.
+// O parâmetro da tela é o orçamento C das Eqs. (9.12)–(9.15): Σϵᵢ ≤ C.
+// Dual com orçamento: min ½α'Qα − Σα + Cλ, com Σαᵢyᵢ = 0 e 0 ≤ αᵢ ≤ λ. O multiplicador λ é o cost do e1071 e o C do SVC.
+// Kernels positivos semidefinidos: pontos interiores (Mehrotra), direto no problema com λ.
+// Sigmoide: pode não ser semidefinido, então procura por bisseção o cost cujo Σϵ dá C, usando o SMO do libsvm.
 const Solver = (() => {
   function kernelFn(k) {
     if (k.type === 'linear') return (a, b) => a.x*b.x + a.y*b.y;
@@ -416,13 +446,114 @@ const Solver = (() => {
     return { alpha, converged, iters };
   }
 
+  // Pontos interiores para o dual com orçamento. A variável a mais (λ) aparece só no sistema orlado 2×2 de (Δν, Δλ).
+  function ipmBudget(Q, y, C) {
+    const n = y.length, a0 = 1;
+    const alpha = new Float64Array(n).fill(a0), z = new Float64Array(n).fill(1), s = new Float64Array(n).fill(a0);
+    const u = new Float64Array(n).fill(Math.max(C/n, 1e-2));
+    let lam = 2*a0, nu = 0, iters = 0, converged = false;
+    const L = Array.from({ length: n }, () => new Float64Array(n));
+    const rd = new Float64Array(n), g = new Float64Array(n), Hy = new Float64Array(n), Hw = new Float64Array(n), Hg = new Float64Array(n);
+    const da = new Float64Array(n), dz = new Float64Array(n), du = new Float64Array(n), ds = new Float64Array(n);
+    const rc1 = new Float64Array(n), rc2 = new Float64Array(n), D = new Float64Array(n), w = new Float64Array(n);
+    function factor() {
+      for (let reg = 1e-12; reg < 1; reg *= 100) {
+        let ok = true;
+        for (let i = 0; i < n && ok; i++) {
+          for (let j = 0; j <= i; j++) {
+            let v = Q[i][j] + (i === j ? D[i] + reg : 0);
+            for (let k = 0; k < j; k++) v -= L[i][k]*L[j][k];
+            if (i === j) { if (!(v > 0)) { ok = false; break; } L[i][i] = Math.sqrt(v); }
+            else L[i][j] = v / L[j][j];
+          }
+        }
+        if (ok) return true;
+      }
+      return false;
+    }
+    function solveL(b, out) {
+      for (let i = 0; i < n; i++) { let v = b[i]; for (let k = 0; k < i; k++) v -= L[i][k]*out[k]; out[i] = v / L[i][i]; }
+      for (let i = n-1; i >= 0; i--) { let v = out[i]; for (let k = i+1; k < n; k++) v -= L[k][i]*out[k]; out[i] = v / L[i][i]; }
+    }
+    let rp = 0, rl = 0, dnu = 0, dlam = 0, yHy = 0, yHw = 0, wHw = 0, sw = 0;
+    function direction() {
+      let yHg = 0, wHg = 0, src2 = 0;
+      for (let i = 0; i < n; i++) g[i] = -rd[i] - rc1[i]/alpha[i] + rc2[i]/s[i];
+      solveL(g, Hg);
+      for (let i = 0; i < n; i++) { yHg += y[i]*Hg[i]; wHg += w[i]*Hg[i]; src2 += rc2[i]/s[i]; }
+      const a11 = -yHy, a12 = yHw, a21 = -yHw, a22 = wHw - sw;
+      const b1 = -rp - yHg, b2 = rl + src2 - wHg, det = a11*a22 - a12*a21;
+      dnu = (b1*a22 - a12*b2)/det;
+      dlam = (a11*b2 - a21*b1)/det;
+      for (let i = 0; i < n; i++) {
+        da[i] = Hg[i] - dnu*Hy[i] + dlam*Hw[i];
+        ds[i] = dlam - da[i];
+        dz[i] = (-rc1[i] - z[i]*da[i]) / alpha[i];
+        du[i] = (-rc2[i] - u[i]*ds[i]) / s[i];
+      }
+    }
+    function maxStep() {
+      let a = 1;
+      for (let i = 0; i < n; i++) {
+        if (da[i] < 0) a = Math.min(a, -alpha[i]/da[i]);
+        if (ds[i] < 0) a = Math.min(a, -s[i]/ds[i]);
+        if (dz[i] < 0) a = Math.min(a, -z[i]/dz[i]);
+        if (du[i] < 0) a = Math.min(a, -u[i]/du[i]);
+      }
+      return a;
+    }
+    for (iters = 0; iters < 200; iters++) {
+      let mu = 0, rn = 0, ob = C*lam, su = 0; rp = 0;
+      for (let i = 0; i < n; i++) {
+        let t = 0;
+        for (let j = 0; j < n; j++) t += Q[i][j]*alpha[j];
+        ob += alpha[i]*(0.5*t - 1);
+        rd[i] = t - 1 + y[i]*nu - z[i] + u[i];
+        rn = Math.max(rn, Math.abs(rd[i]));
+        rp += y[i]*alpha[i];
+        su += u[i];
+        mu += alpha[i]*z[i] + s[i]*u[i];
+      }
+      rl = C - su;
+      const gap = mu;
+      mu /= 2*n;
+      if (rn < 1e-8 && Math.abs(rp) < 1e-8 && Math.abs(rl) < 1e-8*(1 + C) && gap < 1e-9*(1 + Math.abs(ob))) { converged = true; break; }
+      sw = 0;
+      for (let i = 0; i < n; i++) { w[i] = u[i]/s[i]; D[i] = z[i]/alpha[i] + w[i]; sw += w[i]; }
+      if (!factor()) break;
+      solveL(y, Hy); solveL(w, Hw);
+      yHy = 0; yHw = 0; wHw = 0;
+      for (let i = 0; i < n; i++) { yHy += y[i]*Hy[i]; yHw += y[i]*Hw[i]; wHw += w[i]*Hw[i]; }
+      for (let i = 0; i < n; i++) { rc1[i] = alpha[i]*z[i]; rc2[i] = s[i]*u[i]; }
+      direction();
+      const ap = maxStep();
+      let muAff = 0;
+      for (let i = 0; i < n; i++) muAff += (alpha[i]+ap*da[i])*(z[i]+ap*dz[i]) + (s[i]+ap*ds[i])*(u[i]+ap*du[i]);
+      muAff /= 2*n;
+      const sigma = Math.pow(muAff/mu, 3);
+      for (let i = 0; i < n; i++) {
+        rc1[i] = alpha[i]*z[i] + da[i]*dz[i] - sigma*mu;
+        rc2[i] = s[i]*u[i] + ds[i]*du[i] - sigma*mu;
+      }
+      direction();
+      if (!Number.isFinite(dlam) || !Number.isFinite(dnu)) break;
+      const a = Math.min(1, 0.995*maxStep());
+      for (let i = 0; i < n; i++) {
+        alpha[i] += a*da[i]; s[i] = Math.max(s[i] + a*ds[i], 1e-300);
+        z[i] += a*dz[i]; u[i] += a*du[i];
+      }
+      nu += a*dnu; lam += a*dlam;
+    }
+    return { alpha, lam, converged, iters };
+  }
+
   // SMO com seleção de segunda ordem, como no libsvm.
-  function smo(Q, y, c) {
+  function smo(Q, y, c, maxIter = 200000) {
     const n = y.length, alpha = new Float64Array(n), G = new Float64Array(n).fill(-1), TAU = 1e-12, EPS = 1e-5;
     const up = i => (y[i] > 0 && alpha[i] < c) || (y[i] < 0 && alpha[i] > 0);
     const low = i => (y[i] > 0 && alpha[i] > 0) || (y[i] < 0 && alpha[i] < c);
     let it = 0, converged = false;
-    for (; it < 200000; it++) {
+    for (; it < maxIter; it++) {
       let i = -1, gmax = -Infinity, gmax2 = -Infinity;
       for (let t = 0; t < n; t++) if (up(t) && -y[t]*G[t] >= gmax) { gmax = -y[t]*G[t]; i = t; }
       let j = -1, best = Infinity;
@@ -438,7 +569,7 @@ const Solver = (() => {
       }
       if (gmax + gmax2 < EPS || j < 0) { converged = true; break; }
       const oi = alpha[i], oj = alpha[j];
-      // Projeta o passo no segmento viável: yᵢαᵢ + yⱼαⱼ fica constante e 0 ≤ α ≤ cost.
+      // Projeta o passo no segmento viável: yᵢαᵢ + yⱼαⱼ fica constante e 0 ≤ α ≤ c.
       if (y[i] !== y[j]) {
         let q = Q[i][i] + Q[j][j] + 2*Q[i][j]; if (q <= 0) q = TAU;
         const delta = (-G[i] - G[j]) / q, diff = oi - oj;
@@ -477,71 +608,152 @@ const Solver = (() => {
     return (lo + hi) / 2;
   }
 
-  function solve(points, kernel, cost) {
+  // Penalidade usada como "infinito": define o orçamento mínimo viável e a margem rígida.
+  const HARD_COST = 1e5;
+
+  function solve(points, kernel, C, hint) {
     const n = points.length, K = kernelFn(kernel), y = Float64Array.from(points, p => p.c);
     const Km = Array.from({ length: n }, () => new Float64Array(n));
-    let kappa = 0;
-    for (let i = 0; i < n; i++) for (let j = 0; j <= i; j++) {
-      const v = K(points[i], points[j]);
-      Km[i][j] = v; Km[j][i] = v;
-      if (i === j) kappa = Math.max(kappa, Math.abs(v));
+    let kappa = 0, nb = 0;
+    for (let i = 0; i < n; i++) {
+      if (y[i] > 0) nb++;
+      for (let j = 0; j <= i; j++) {
+        const v = K(points[i], points[j]);
+        Km[i][j] = v; Km[j][i] = v;
+        if (i === j) kappa = Math.max(kappa, Math.abs(v));
+      }
     }
-    let alpha, b, converged, iters;
+    if (!(kappa > 0)) kappa = 1;
+    const Cmax = 2*Math.min(nb, n - nb), sigmoid = kernel.type === 'sigmoid';
     const gOf = al => {
       const g = new Float64Array(n);
       for (let i = 0; i < n; i++) { let t = 0; for (let j = 0; j < n; j++) t += al[j]*y[j]*Km[i][j]; g[i] = t; }
       return g;
     };
+    const hingeOf = (g, b0) => { let t = 0; for (let i = 0; i < n; i++) t += Math.max(0, 1 - y[i]*(g[i] + b0)); return t; };
     // Lacuna de dualidade relativa: mede, sem depender do otimizador, a distância até a solução.
-    const dualityGap = (al, g, b0) => {
-      let quad = 0, sumA = 0, hinge = 0;
-      for (let i = 0; i < n; i++) { quad += al[i]*y[i]*g[i]; sumA += al[i]; hinge += Math.max(0, 1 - y[i]*(g[i] + b0)); }
-      const primal = 0.5*quad + cost*hinge;
+    const dualityGap = (al, g, b0, cost) => {
+      let quad = 0, sumA = 0;
+      for (let i = 0; i < n; i++) { quad += al[i]*y[i]*g[i]; sumA += al[i]; }
+      const primal = 0.5*quad + cost*hingeOf(g, b0);
       return Math.abs(primal - (sumA - 0.5*quad)) / (1 + Math.abs(primal));
     };
     const Qraw = Km.map((r, i) => r.map((v, j) => v*y[i]*y[j]));
-    if (kernel.type === 'sigmoid') {
-      const r = smo(Qraw, y, cost);
-      alpha = r.alpha; b = r.b; converged = r.converged; iters = r.iters;
-    } else {
-      // Reescala para que a diagonal de Q fique perto de 1.
-      if (!(kappa > 0)) kappa = 1;
-      const Q = Qraw.map(r => r.map(v => v/kappa));
-      const r = ipm(Q, y, cost*kappa);
-      alpha = r.alpha.map(a => a/kappa); iters = r.iters;
-      let g0 = gOf(alpha);
-      b = polishB(g0, y);
-      let gap = dualityGap(alpha, g0, b);
-      if (!(gap <= 1e-7)) {
-        // Núcleos mal escalados (grau alto, cost alto): o SMO serve de segunda tentativa.
-        const r2 = smo(Qraw, y, cost);
-        const g2 = gOf(r2.alpha), b2 = polishB(g2, y), gap2 = dualityGap(r2.alpha, g2, b2);
-        if (gap2 < gap || !Number.isFinite(gap)) { alpha = r2.alpha; b = b2; gap = gap2; iters += r2.iters; g0 = g2; }
-      }
-      // Zera os α residuais de quem está claramente fora da margem, se o efeito em f for desprezível.
-      const trimmed = Float64Array.from(alpha);
-      for (let i = 0; i < n; i++) {
-        if (trimmed[i] < 0 || y[i]*(g0[i] + b) > 1 + 1e-4) trimmed[i] = 0;
-      }
+    const Qs = Qraw.map(r => r.map(v => v/kappa));
+    // Zera os α residuais de quem está claramente fora da margem, se o efeito em f for desprezível.
+    function trim(fit) {
+      const g0 = gOf(fit.alpha), trimmed = Float64Array.from(fit.alpha);
+      for (let i = 0; i < n; i++) if (trimmed[i] < 0 || y[i]*(g0[i] + fit.b) > 1 + 1e-4) trimmed[i] = 0;
       const g1 = gOf(trimmed);
       let shift = 0;
       for (let i = 0; i < n; i++) shift = Math.max(shift, Math.abs(g1[i] - g0[i]));
-      if (shift <= 1e-6) { alpha = trimmed; b = polishB(g1, y); }
-      converged = gap <= 1e-5;
+      if (shift <= 1e-6) { fit.alpha = trimmed; fit.b = polishB(g1, y); }
+      return fit;
     }
-    const g = gOf(alpha);
+    // Forma penalizada (cost fixo).
+    function fitCost(cost, maxIter) {
+      if (sigmoid) {
+        const r = smo(Qraw, y, cost, maxIter);
+        const g = gOf(r.alpha);
+        return { alpha: r.alpha, b: r.b, cost, converged: r.converged, iters: r.iters, spent: hingeOf(g, r.b) };
+      }
+      const r = ipm(Qs, y, cost*kappa);
+      let fit = { alpha: r.alpha.map(a => a/kappa), cost, iters: r.iters };
+      let g = gOf(fit.alpha);
+      fit.b = polishB(g, y);
+      let gap = dualityGap(fit.alpha, g, fit.b, cost);
+      if (!(gap <= 1e-7)) {
+        // Núcleos mal escalados (grau alto, cost alto): o SMO serve de segunda tentativa.
+        const r2 = smo(Qraw, y, cost);
+        const g2 = gOf(r2.alpha), b2 = polishB(g2, y), gap2 = dualityGap(r2.alpha, g2, b2, cost);
+        if (gap2 < gap || !Number.isFinite(gap)) { fit.alpha = r2.alpha; fit.b = b2; gap = gap2; fit.iters += r2.iters; g = g2; }
+      }
+      trim(fit);
+      g = gOf(fit.alpha);
+      fit.converged = gap <= 1e-5;
+      fit.spent = hingeOf(g, fit.b);
+      return fit;
+    }
+    // Procura o cost cujo Σϵ dá C. Σϵ cai quando cost sobe (no sigmoide, só aproximadamente).
+    function bisect(target, start) {
+      const tol = 1e-4*(1 + target), LOW = 1e-5, MAXC = sigmoid ? 1e4 : HARD_COST, iterCap = sigmoid ? 20000 : undefined;
+      let best = null, iters = 0;
+      const at = c => {
+        const f = fitCost(c, iterCap);
+        iters += f.iters;
+        if (!best || Math.abs(f.spent - target) < Math.abs(best.spent - target)) best = f;
+        return f;
+      };
+      let lo = Math.max(LOW, Math.min(MAXC, start > 0 ? start : 1)), hi = lo;
+      let f = at(lo);
+      if (f.spent > target) { while (f.spent > target && hi < MAXC) { lo = hi; hi = Math.min(MAXC, hi*4); f = at(hi); } }
+      else { while (f.spent <= target && lo > LOW) { hi = lo; lo = Math.max(LOW, lo/4); f = at(lo); } }
+      for (let k = 0; k < 40 && Math.abs(best.spent - target) > tol && hi/lo > 1 + 1e-7; k++) {
+        const mid = Math.sqrt(lo*hi), m = at(mid);
+        if (m.spent > target) lo = mid; else hi = mid;
+      }
+      best.iters = iters;
+      best.hit = Math.abs(best.spent - target) <= 2*tol;
+      return best;
+    }
+    // Forma com orçamento, direto.
+    function fitBudget(target) {
+      const r = ipmBudget(Qs, y, target);
+      const fit = { alpha: r.alpha.map(a => a/kappa), cost: r.lam/kappa, iters: r.iters };
+      let g = gOf(fit.alpha);
+      fit.b = polishB(g, y);
+      const gap = dualityGap(fit.alpha, g, fit.b, fit.cost);
+      trim(fit);
+      g = gOf(fit.alpha);
+      fit.spent = hingeOf(g, fit.b);
+      fit.hit = Math.abs(fit.spent - target) <= 1e-4*(1 + target);
+      fit.converged = gap <= 1e-5 && fit.hit && Number.isFinite(fit.cost);
+      return fit;
+    }
+
+    const base = { Cmax, Cmin: 0, hard: false, cost: null, alpha: new Array(n).fill(0), b: 0, norm2: 0, M: null, eps: new Array(n).fill(0), vals: new Array(n).fill(0), sumEps: 0, sv: [], margin: [], inside: [], wrong: [], converged: true, iters: 0 };
+    let high = null;
+    if (!sigmoid) {
+      // Orçamento mínimo: o que sobra de Σϵ com penalidade muito alta. Dados separáveis no espaço de atributos dão 0.
+      high = fitCost(HARD_COST);
+      const spent = high.spent <= 1e-6 ? 0 : high.spent;
+      base.Cmin = Math.min(spent, Cmax);
+    }
+    if (C >= Cmax - 1e-9) return { ...base, kind: 'flat' };
+    if (C < base.Cmin - 1e-6*(1 + base.Cmin)) return { ...base, kind: 'infeasible' };
+
+    let fit, approximate = false;
+    if (sigmoid) {
+      fit = bisect(C, hint);
+      approximate = !fit.hit;
+      fit.converged = fit.converged !== false;
+    } else if (C <= base.Cmin + 1e-5*(1 + base.Cmin) || C < 1e-6) {
+      fit = high;
+      base.hard = base.Cmin === 0;
+    } else {
+      fit = fitBudget(C);
+      if (!fit.converged) {
+        // Segunda tentativa, mais lenta: bisseção em cost com a forma penalizada.
+        const f2 = bisect(C, hint || fit.cost);
+        if (f2.hit && f2.converged) fit = f2;
+        else if (!fit.hit && (f2.hit || Math.abs(f2.spent - C) < Math.abs(fit.spent - C))) { fit = f2; fit.converged = false; }
+      }
+    }
+
+    const alpha = fit.alpha, b = fit.b, g = gOf(alpha);
     let norm2 = 0;
     for (let i = 0; i < n; i++) norm2 += alpha[i]*y[i]*g[i];
+    if (!sigmoid && !(norm2 > 1e-12)) return { ...base, kind: 'flat' };
     const eps = new Array(n), vals = new Array(n), sv = [], margin = [], inside = [], wrong = [];
     let sumEps = 0;
     for (let i = 0; i < n; i++) {
       const v = y[i]*(g[i] + b), e = 1 - v > 1e-4 ? 1 - v : 0;
-      vals[i] = v; eps[i] = e; sumEps += e;
+      vals[i] = v; eps[i] = e; sumEps += Math.max(0, 1 - v);
       if (e > 0) { sv.push(i); (v < 0 ? wrong : inside).push(i); }
       // No sigmoide, α exato do SMO define o suporte; nos demais, a posição do ponto em relação à margem.
-      else if (Math.abs(v - 1) <= 1e-4 || (kernel.type === 'sigmoid' && alpha[i] > 0)) { sv.push(i); margin.push(i); }
+      else if (Math.abs(v - 1) <= 1e-4 || (sigmoid && alpha[i] > 0)) { sv.push(i); margin.push(i); }
     }
-    return { alpha: Array.from(alpha), b, norm2, M: norm2 > 1e-10 ? 1/Math.sqrt(norm2) : null, eps, vals, sumEps, sv, margin, inside, wrong, converged, iters };
+    return { ...base, kind: 'ok', cost: fit.cost, alpha: Array.from(alpha), b, norm2, M: norm2 > 1e-10 ? 1/Math.sqrt(norm2) : null, eps, vals, sumEps, sv, margin, inside, wrong, approximate, converged: base.converged && fit.converged, iters: fit.iters };
   }
 
   // Avalia f numa grade regular (eixo x de x0 com passo hx; eixo y de y0 com passo hy).
@@ -594,6 +806,7 @@ const Solver = (() => {
     return { u, g: () => Math.sqrt(-2*Math.log(1 - u())) * Math.cos(2*Math.PI*u()) };
   }
   const CX = (X0+X1)/2, CY = (Y0+Y1)/2;
+  const C2 = -1; // rótulo da segunda classe (roxo)
   const bound = p => ({ x: Math.max(X0+.08, Math.min(X1-.08, p.x)), y: Math.max(Y0+.08, Math.min(Y1-.08, p.y)), c: p.c });
   const DATA = {
     ring() {
@@ -622,6 +835,36 @@ const Solver = (() => {
       }
       return pts;
     },
+    // Duas espirais entrelaçadas
+    spiral() {
+      const r = rng(131), pts = [];
+      for (const [c, off] of [[1, 0], [C2, Math.PI]]) for (let i = 0; i < 20; i++) {
+        const t = 0.12 + 0.88*i/19, R = 0.3 + 2.05*t, a = 2.6*Math.PI*t + off;
+        pts.push({ x: CX + R*Math.cos(a) + .06*r.g(), y: CY + R*Math.sin(a) + .06*r.g(), c });
+      }
+      return pts;
+    },
+    // Tabuleiro 3 × 3: classes alternadas, bom para árvores e ruim para fronteiras lineares
+    board() {
+      const r = rng(137), pts = [], s = 1.6;
+      for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) for (let k = 0; k < 4; k++)
+        pts.push({ x: CX - 1.5*s + (i + .12 + .76*r.u())*s, y: CY - 1.5*s + (j + .12 + .76*r.u())*s, c: (i + j) % 2 ? C2 : 1 });
+      return pts;
+    },
+    // Duas nuvens quase em cima uma da outra: K pequeno no KNN e árvores fundas se ajustam demais
+    overlap() {
+      const r = rng(139), pts = [];
+      for (let i = 0; i < 25; i++) pts.push({ x: CX - .4 + .8*r.g(), y: CY + .4 + .8*r.g(), c: 1 });
+      for (let i = 0; i < 25; i++) pts.push({ x: CX + .4 + .8*r.g(), y: CY - .4 + .8*r.g(), c: C2 });
+      return pts;
+    },
+    // 30 contra 6: as priors estimadas empurram a fronteira para o lado da classe rara
+    unbal() {
+      const r = rng(149), pts = [];
+      for (let i = 0; i < 30; i++) pts.push({ x: CX - .55 + .7*r.g(), y: CY + .45 + .7*r.g(), c: 1 });
+      for (let i = 0; i < 6; i++) pts.push({ x: CX + .85 + .45*r.g(), y: CY - .65 + .45*r.g(), c: C2 });
+      return pts;
+    },
     figure() {
       const B = [[-0.25,3.55],[-0.67,2.89],[-0.58,2.89],[0.36,2.89],[0.89,2.03],[-1.53,1.82],[-0.02,1.66],[0.03,1.66],[-1.15,1.4],[-0.65,1.14],[-0.22,0.37],[-0.44,-0.17]];
       const P = [[1.94,0.69],[1.65,0.49],[1.41,0.08],[2.02,0.01],[0.49,-0.17],[3.17,-0.21],[0.64,-0.74],[1.17,-0.86],[2.62,-0.93],[1.06,-0.97],[3.32,-1.09],[0.99,-1.56]];
@@ -631,7 +874,7 @@ const Solver = (() => {
   const loadData = name => DATA[name]().map(bound);
 
   const state = {
-    points: loadData('ring'), dataset: 'ring', kernel: 'rbf', cost: 1, d: 3, gRbf: 1, gSig: 0.1, r: 0,
+    points: loadData('ring'), dataset: 'ring', kernel: 'rbf', C: 2, hint: 0, d: 3, gRbf: 1, gSig: 0.1, r: 0,
     tool: 'move', addClass: 1, sel: -1, drag: -1, sol: null, flash: '', F0: null, ghostD: '',
     show: { margin: true, sv: true, reg: true },
   };
@@ -771,7 +1014,8 @@ const Solver = (() => {
     const W = cv.width, H = cv.height;
     ctx.fillStyle = colors.plot;
     ctx.fillRect(0, 0, W, H);
-    if (state.show.reg) {
+    const ok = state.sol && state.sol.kind === 'ok';
+    if (state.show.reg && ok) {
       const scale = W / PW, r = 1.45*scale;
       for (const sign of [1, -1]) {
         ctx.fillStyle = sign > 0 ? colors.bd : colors.pd;
@@ -785,7 +1029,7 @@ const Solver = (() => {
         ctx.fill();
       }
     }
-    if (state.show.margin) {
+    if (state.show.margin && ok) {
       const w = off.width, h = off.height, data = img.data;
       const A = 77;
       for (let r = 0, q = 0; r < h; r++) {
@@ -823,20 +1067,25 @@ const Solver = (() => {
   }
 
   /* ---------- desenho ---------- */
-  function computeAndDraw() {
+  function computeAndDraw(opts = {}) {
     const pts = state.points, k = kernelSpec();
-    const s = state.sol = Solver.solve(pts, k, state.cost);
-    Solver.evalGrid(pts, s, k, F, NX, NY, X0, HX, Y0, HY);
-    // Com w = 0, f é constante: evita que ruído numérico desenhe curvas falsas.
-    if (s.M === null && state.kernel !== 'sigmoid') F.fill(s.b);
+    const s = state.sol = Solver.solve(pts, k, state.C, state.hint);
+    const ok = s.kind === 'ok';
+    if (ok) {
+      state.hint = s.cost;
+      Solver.evalGrid(pts, s, k, F, NX, NY, X0, HX, Y0, HY);
+      // Com w = 0, f é constante: evita que ruído numérico desenhe curvas falsas.
+      if (s.M === null && state.kernel !== 'sigmoid') F.fill(s.b);
+    } else F.fill(0);
+    renderBudget(opts);
     paint();
 
-    const d0 = contour(0);
+    const d0 = ok ? contour(0) : '';
     $('hyper').setAttribute('d', d0);
     state.hasBoundary = d0.length > 0;
     const on = (id, v) => { $(id).style.display = v ? '' : 'none'; };
-    on('layer-margins', state.show.margin);
-    if (state.show.margin) {
+    on('layer-margins', state.show.margin && ok);
+    if (state.show.margin && ok) {
       $('marg-b').setAttribute('d', contour(1));
       $('marg-p').setAttribute('d', contour(-1));
     }
@@ -870,15 +1119,13 @@ const Solver = (() => {
     renderControls(lastOpts);
     if (queued) return;
     queued = true;
-    requestAnimationFrame(() => { queued = false; lastOpts = {}; computeAndDraw(); });
+    requestAnimationFrame(() => { queued = false; const o = lastOpts; lastOpts = {}; computeAndDraw(o); });
   }
 
   /* ---------- controles ---------- */
   function renderControls(opts) {
     const k = state.kernel, g = k === 'rbf' ? state.gRbf : state.gSig;
     const setNum = (id, v) => { if (document.activeElement !== $(id)) $(id).value = v; };
-    setNum('p-cost-n', three(state.cost));
-    if (opts.from !== 'cost') $('p-cost').value = Math.log10(state.cost);
     setNum('p-d-n', state.d); $('p-d').value = state.d;
     setNum('p-g-n', three(g));
     if (opts.from !== 'g') $('p-g').value = Math.log10(g);
@@ -889,22 +1136,6 @@ const Solver = (() => {
     $('c-r').hidden = k !== 'sigmoid';
     document.querySelectorAll('#kernels button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.k === k)));
 
-    const dt = v => String(three(v));
-    const c = dt(state.cost);
-    const R = {
-      linear: `kernel = "linear"`,
-      poly: `kernel = "polynomial", degree = ${state.d}, gamma = 1, coef0 = 1`,
-      rbf: `kernel = "radial", gamma = ${dt(state.gRbf)}`,
-      sigmoid: `kernel = "sigmoid", gamma = ${dt(state.gSig)}, coef0 = ${dt(state.r)}`,
-    }[k];
-    const P = {
-      linear: `kernel="linear"`,
-      poly: `kernel="poly", degree=${state.d}, gamma=1, coef0=1`,
-      rbf: `kernel="rbf", gamma=${dt(state.gRbf)}`,
-      sigmoid: `kernel="sigmoid", gamma=${dt(state.gSig)}, coef0=${dt(state.r)}`,
-    }[k];
-    $('code-r').textContent = `svm(y ~ ., data = dados, ${R}, cost = ${c}, scale = FALSE)`;
-    $('code-py').textContent = `SVC(${P}, C=${c})`;
     const G = sigBR(g);
     $('v-kernel').innerHTML = {
       linear: `<i>K</i>(<i>x<sub>i</sub></i>, <i>x<sub>i′</sub></i>) = Σ<sub><i>j</i></sub> <i>x<sub>ij</sub></i> <i>x<sub>i′j</sub></i> &nbsp;(9.21)`,
@@ -914,29 +1145,78 @@ const Solver = (() => {
     }[k];
   }
 
+  /* ---------- orçamento C ---------- */
+  const toT = (C, Cmax) => Cmax > 0 ? Math.sqrt(Math.min(C, Cmax) / Cmax) : 0;
+  const roundUp = v => Math.ceil(v*100 - 1e-7) / 100;
+  function renderBudget(opts) {
+    const s = state.sol;
+    if (!opts.fromSlider) $('c-range').value = Math.round(toT(state.C, s.Cmax) * 1000);
+    if (document.activeElement !== $('c-num')) $('c-num').value = state.C.toFixed(2);
+    $('c-num').max = s.Cmax;
+    $('c-range').setAttribute('aria-valuetext', `C = ${num(state.C)}`);
+    $('c-max').textContent = `máx. ${s.Cmax}`;
+    $('c-floor').style.width = (toT(s.Cmin, s.Cmax) * 100).toFixed(2) + '%';
+    const btn = $('c-usemin');
+    btn.hidden = s.kind !== 'infeasible' || s.Cmin >= s.Cmax;
+    if (!btn.hidden) btn.textContent = `Usar C = ${num(roundUp(s.Cmin))}`;
+    $('c-zero').hidden = !btn.hidden || s.Cmin > 0;
+  }
+  // Depois de trocar dados ou kernel, um C sem solução é ajustado e avisado; no arraste, só avisa.
+  function fixInfeasible() {
+    const s = Solver.solve(state.points, kernelSpec(), state.C, state.hint);
+    if (s.kind === 'infeasible' && s.Cmin < s.Cmax) {
+      state.C = roundUp(s.Cmin);
+      state.flash = `Com estes dados e este kernel, C precisa ser pelo menos ${num(s.Cmin)}. C foi ajustado para ${num(state.C)}.`;
+    } else if (state.C > s.Cmax) { state.C = Math.max(0, Math.round((s.Cmax*0.1)*100)/100); }
+  }
+
   const HINT = {
     linear: 'O kernel linear reproduz o classificador de vetor suporte. Em dados não lineares, a reta não acompanha a forma das classes.',
-    poly: 'Aumente o grau d: a fronteira ganha flexibilidade e, com cost alto, tende a se ajustar demais.',
+    poly: 'Aumente o grau d: a fronteira ganha flexibilidade e, com C pequeno, tende a se ajustar demais.',
     rbf: 'Aumente γ: cada ponto passa a influenciar só a própria vizinhança e a fronteira se fecha em torno dos pontos.',
     sigmoid: 'O kernel sigmoide nem sempre é positivo semidefinido: a solução pode ser instável e depender da ordem dos pontos. Experimente γ pequeno e r ≤ 0.',
   };
 
   function renderPanel() {
-    const s = state.sol, pts = state.points;
-    const notPSD = s.M === null && state.kernel === 'sigmoid';
-    $('v-m').textContent = s.M !== null ? (s.M >= 1000 ? sigBR(s.M) : num(s.M, 3)) : (notPSD ? 'indefinida' : '∞');
-    $('v-eq').hidden = notPSD;
-    $('v-m').style.fontSize = notPSD ? '.55em' : '';
-    $('pill').textContent = `Erros de treino: ${s.wrong.length} de ${pts.length}`;
+    const s = state.sol, pts = state.points, ok = s.kind === 'ok', k = state.kernel;
+    const notPSD = ok && s.M === null && k === 'sigmoid';
+    $('v-m').textContent = ok ? (s.M !== null ? (s.M >= 1000 ? sigBR(s.M) : num(s.M, 3)) : (notPSD ? 'indefinida' : '∞')) : (s.kind === 'flat' ? '∞' : 'não existe');
+    $('v-eq').hidden = notPSD || s.kind === 'infeasible';
+    $('v-m').style.fontSize = notPSD || s.kind === 'infeasible' ? '.55em' : '';
+    $('pill').textContent = ok ? `Erros de treino: ${s.wrong.length} de ${pts.length}` : 'Sem classificador';
     $('v-svlab').textContent = `Vetores suporte: ${s.sv.length}`;
     $('v-c1').textContent = s.margin.length;
     $('v-c2').textContent = s.inside.length;
     $('v-c3').textContent = s.wrong.length;
-    $('v-spendlab').innerHTML = s.sumEps > 0 ? `Orçamento gasto: <span class="keep">Σϵ = ${num(s.sumEps)} de C = ${num(s.sumEps)}</span>` : 'Orçamento: nenhuma violação';
+    const C = state.C;
+    $('v-spendlab').innerHTML = !ok ? 'Orçamento' : C > 0 || s.sumEps > 1e-4 ? `Orçamento gasto: <span class="keep">Σϵ = ${num(s.sumEps)} de C = ${num(C)}</span>` : 'Orçamento: nenhuma violação permitida';
     const spendOrder = pts.map((p, i) => i).filter(i => s.eps[i] > 0).sort((a, b) => s.eps[b] - s.eps[a]);
-    $('v-spend').innerHTML = spendOrder.map(i => `<span class="${pts[i].c === 1 ? 'b' : 'p'}" style="width:${(s.eps[i]/s.sumEps*100).toFixed(2)}%" title="${className(pts[i].c)} ${coord(pts[i])}: ϵ = ${num(s.eps[i], 3)}"></span>`).join('');
-    $('v-budget').innerHTML = `Este <code>cost</code> equivale ao orçamento <span class="math"><i>C</i></span> = ${num(s.sumEps)} das eqs. (9.12)–(9.15). O argumento <code>C</code> do <code>SVC</code> é o <code>cost</code>, não esse orçamento.`;
-    let beta = `β<sub>0</sub> = ${num(s.b, 3)}; <i>S</i> é o conjunto dos vetores suporte; α<sub><i>i</i></sub> &gt; 0 para azul e α<sub><i>i</i></sub> &lt; 0 para roxo.`;
+    $('v-spend').innerHTML = spendOrder.map(i => `<span class="${pts[i].c === 1 ? 'b' : 'p'}" style="width:${(s.eps[i]/Math.max(C, s.sumEps)*100).toFixed(2)}%" title="${className(pts[i].c)} ${coord(pts[i])}: ϵ = ${num(s.eps[i], 3)}"></span>`).join('');
+    $('v-budget').innerHTML = ok
+      ? (s.hard ? 'Margem rígida: equivale a um <code>cost</code> alto o bastante no e1071 ou scikit-learn.' : `Equivale a <code>cost</code> = ${sigBR(s.cost)} no e1071 (com <code>scale = FALSE</code>) e ao argumento <code>C</code> do <code>SVC</code>, que não é o orçamento. Quanto maior o <span class="math"><i>C</i></span> daqui, menor esse <code>cost</code>.`)
+      : `O orçamento <span class="math"><i>C</i></span> das Eqs. (9.12)–(9.15) vai de ${num(s.Cmin)} (mínimo viável) a ${num(s.Cmax)}.`;
+    const dt = v => String(three(v));
+    const five = v => String(Number(v.toPrecision(5)));
+    const argR = {
+      linear: `kernel = "linear"`,
+      poly: `kernel = "polynomial", degree = ${state.d}, gamma = 1, coef0 = 1`,
+      rbf: `kernel = "radial", gamma = ${dt(state.gRbf)}`,
+      sigmoid: `kernel = "sigmoid", gamma = ${dt(state.gSig)}, coef0 = ${dt(state.r)}`,
+    }[k];
+    const argP = {
+      linear: `kernel="linear"`,
+      poly: `kernel="poly", degree=${state.d}, gamma=1, coef0=1`,
+      rbf: `kernel="rbf", gamma=${dt(state.gRbf)}`,
+      sigmoid: `kernel="sigmoid", gamma=${dt(state.gSig)}, coef0=${dt(state.r)}`,
+    }[k];
+    if (ok) {
+      $('code-r').textContent = `svm(y ~ ., data = dados, ${argR}, cost = ${five(s.cost)}, scale = FALSE)`;
+      $('code-py').textContent = `SVC(${argP}, C=${five(s.cost)})`;
+    } else {
+      $('code-r').textContent = '# sem solução para este orçamento';
+      $('code-py').textContent = '# sem solução para este orçamento';
+    }
+    let beta = ok ? `β<sub>0</sub> = ${num(s.b, 3)}; <i>S</i> é o conjunto dos vetores suporte; α<sub><i>i</i></sub> &gt; 0 para azul e α<sub><i>i</i></sub> &lt; 0 para roxo.` : 'Sem função de decisão para este orçamento.';
     $('v-beta').innerHTML = beta;
     const sorted = [...s.sv].sort((a, b) => s.alpha[b] - s.alpha[a]);
     $('v-sv').innerHTML = sorted.map(i => {
@@ -947,9 +1227,25 @@ const Solver = (() => {
 
     const say = $('say');
     say.className = 'say';
+    if (s.kind === 'infeasible') {
+      say.className = 'say warn';
+      say.textContent = s.Cmin >= s.Cmax
+        ? `Com estes dados e este kernel, nenhum β diferente de zero cabe abaixo de C = ${num(s.Cmax)}.`
+        : `Com C = ${num(C)} não há solução com penalidade até 10⁵: estes dados e este kernel exigem C ≥ ${num(s.Cmin)}. Aumente C, mude o kernel ou mova um ponto.`;
+      return;
+    }
+    if (s.kind === 'flat') {
+      say.textContent = `Com C ≥ 2·min(n₊, n₋) = ${s.Cmax}, o orçamento cobre todas as violações: β = 0 e a margem fica infinita. Diminua C para obter uma fronteira.`;
+      return;
+    }
     if (!s.converged) {
       say.className = 'say warn';
-      say.textContent = 'O otimizador parou antes de convergir, então esta solução é aproximada. Reduza cost ou mude os parâmetros do kernel.';
+      say.textContent = 'O otimizador parou antes de convergir, então esta solução é aproximada. Aumente C ou mude os parâmetros do kernel.';
+      return;
+    }
+    if (s.approximate) {
+      say.className = 'say warn';
+      say.textContent = `O kernel sigmoide nem sempre é positivo semidefinido e não há cost que gaste exatamente este orçamento: aqui Σϵ = ${num(s.sumEps)}, não C = ${num(C)}.`;
       return;
     }
     if (state.flash) { say.textContent = state.flash; return; }
@@ -1079,7 +1375,22 @@ const Solver = (() => {
     });
     $(numId).addEventListener('blur', () => { $(numId).value = three(get()); });
   };
-  bindLog('p-cost', 'p-cost-n', () => state.cost, v => { state.cost = v; }, 1e-3, 1e5, 'cost');
+  // Orçamento C (escala quadrática: mais resolução nos valores pequenos)
+  $('c-range').addEventListener('input', e => {
+    const t = Number(e.target.value) / 1000, Cmax = state.sol.Cmax;
+    state.C = Math.round(Cmax*t*t*100) / 100;
+    state.flash = '';
+    render({ fromSlider: true });
+  });
+  $('c-num').addEventListener('input', e => {
+    const v = parse(e.target.value);
+    if (!Number.isFinite(v) || v < 0) return;
+    state.C = v; state.flash = '';
+    render();
+  });
+  $('c-num').addEventListener('blur', () => { $('c-num').value = state.C.toFixed(2); });
+  $('c-zero').addEventListener('click', () => { state.C = 0; state.flash = ''; render(); });
+  $('c-usemin').addEventListener('click', () => { state.C = roundUp(state.sol.Cmin); state.flash = ''; render(); });
   bindLog('p-g', 'p-g-n', () => state.kernel === 'rbf' ? state.gRbf : state.gSig,
     v => { if (state.kernel === 'rbf') state.gRbf = v; else state.gSig = v; }, 1e-3, 500, 'g');
   $('p-d').addEventListener('input', e => { state.d = Number(e.target.value); render(); });
@@ -1096,7 +1407,8 @@ const Solver = (() => {
   $('p-r-n').addEventListener('blur', () => { $('p-r-n').value = three(state.r); });
 
   document.querySelectorAll('#kernels button').forEach(b => b.addEventListener('click', () => {
-    state.kernel = b.dataset.k; state.flash = ''; state.sel = -1;
+    state.kernel = b.dataset.k; state.flash = ''; state.sel = -1; state.hint = 0;
+    fixInfeasible();
     render();
   }));
 
@@ -1115,7 +1427,8 @@ const Solver = (() => {
   function setData(name) {
     state.dataset = name;
     state.points = loadData(name);
-    state.sel = -1; state.drag = -1; state.F0 = null; state.flash = '';
+    state.sel = -1; state.drag = -1; state.F0 = null; state.flash = ''; state.hint = 0;
+    fixInfeasible();
     buildPoints();
     render();
   }

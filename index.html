@@ -4,14 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<meta name="description" content="Apps interativos para aprender o classificador de margem máxima, o classificador de vetor suporte e o SVM com kernels.">
-<title>SVM Interativo</title>
+<meta name="description" content="Apps interativos para aprender classificadores arrastando pontos: Naive Bayes, LDA, QDA, SVM, árvore, floresta aleatória e KNN.">
+<title>Classificadores Interativos</title>
 <script>
 try { const t = localStorage.getItem('svm-theme'); if (t === 'dark' || t === 'light') document.documentElement.setAttribute('data-theme', t); } catch (e) {}
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@500;600&family=STIX+Two+Text:wght@600&display=swap" media="print" onload="this.media=\'all\'">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@500;600&family=STIX+Two+Text:wght@600&display=swap" media="print" onload="this.media='all'">
 <style>
 :root {
   --paper: #fbfbfe; --plot: #ffffff; --ink: #15151f; --muted: #5d5d72; --rule: #d8d8e6; --tint: #eeeef6; --blue: #1596e4;
@@ -35,10 +35,10 @@ body { display: flex; flex-direction: column; background: var(--paper); color: v
   border-bottom: 1px solid var(--rule); background: var(--plot);
 }
 .brand { font: 600 1.15rem/1 var(--math); margin: 0; padding-block: 9px 11px; white-space: nowrap; }
-[role="tablist"] { display: flex; gap: 2px; min-width: 0; margin-bottom: -1px; }
+[role="tablist"] { display: flex; gap: 2px; min-width: 0; flex: 1 1 auto; margin-bottom: -1px; overflow-x: auto; scrollbar-width: thin; }
 [role="tab"] {
   appearance: none; background: transparent; color: var(--muted); font: inherit; cursor: pointer;
-  border: 1px solid transparent; border-bottom: 0; border-radius: 7px 7px 0 0; padding: 10px 14px 11px; white-space: nowrap;
+  border: 1px solid transparent; border-bottom: 0; border-radius: 7px 7px 0 0; padding: 10px 12px 11px; white-space: nowrap; flex: none;
 }
 [role="tab"]:hover { color: var(--ink); background: var(--tint); }
 [role="tab"][aria-selected="true"] { color: var(--ink); background: var(--paper); border-color: var(--rule); box-shadow: inset 0 2.5px 0 var(--ink); }
@@ -71,8 +71,9 @@ noscript p { padding: 16px; }
   .top { flex-wrap: nowrap; gap: 6px; }
   .credit-full { display: none; }
   .credit-small { display: block; }
-  [role="tablist"] { flex: 1 1 0; }
-  [role="tab"] { flex: 1 1 0; padding: 10px 4px 11px; font-size: 13.5px; white-space: normal; }
+  [role="tablist"] { flex: 1 1 0; scrollbar-width: none; }
+  [role="tablist"]::-webkit-scrollbar { display: none; }
+  [role="tab"] { padding: 10px 11px 11px; font-size: 13.5px; }
   .theme { padding: 7px; min-width: 38px; min-height: 38px; justify-content: center; }
   .theme span { display: none; }
 }
@@ -80,20 +81,26 @@ noscript p { padding: 16px; }
 </head>
 <body>
 <header class="top">
-  <p class="brand">SVM Interativo</p>
+  <p class="brand">Classificadores Interativos</p>
   <div role="tablist" aria-label="Apps" id="tabs">
+    <button role="tab" id="tab-gnb" aria-controls="panels" aria-selected="false" data-app="gnb" data-title="Naive Bayes gaussiano">Naive Bayes</button>
+    <button role="tab" id="tab-lda" aria-controls="panels" aria-selected="false" data-app="lda" data-title="Análise discriminante linear">LDA</button>
+    <button role="tab" id="tab-qda" aria-controls="panels" aria-selected="false" data-app="qda" data-title="Análise discriminante quadrática">QDA</button>
     <button role="tab" id="tab-margem-maxima" aria-controls="panels" aria-selected="false" data-app="margem-maxima" data-title="Margem máxima">Margem máxima</button>
     <button role="tab" id="tab-vetor-suporte" aria-controls="panels" aria-selected="false" data-app="vetor-suporte" data-title="Vetor suporte">Vetor suporte</button>
-    <button role="tab" id="tab-svm-kernels" aria-controls="panels" aria-selected="false" data-app="svm-kernels" data-title="SVM com kernels">SVM com kernels</button>
+    <button role="tab" id="tab-svm-kernels" aria-controls="panels" aria-selected="false" data-app="svm-kernels" data-title="SVM com kernels">SVM</button>
+    <button role="tab" id="tab-arvore" aria-controls="panels" aria-selected="false" data-app="arvore" data-title="Árvore de decisão">Árvore</button>
+    <button role="tab" id="tab-floresta" aria-controls="panels" aria-selected="false" data-app="floresta" data-title="Floresta aleatória">Floresta</button>
+    <button role="tab" id="tab-knn" aria-controls="panels" aria-selected="false" data-app="knn" data-title="K vizinhos mais próximos">KNN</button>
   </div>
   <button type="button" class="theme" id="theme"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path id="theme-icon"></path></svg><span id="theme-label"></span></button>
 </header>
 <main class="panels" id="panels">
-  <noscript><p>Os apps precisam de JavaScript. <a href="margem-maxima.html">Margem máxima</a> · <a href="vetor-suporte.html">Vetor suporte</a> · <a href="svm-kernels.html">SVM com kernels</a></p></noscript>
+  <noscript><p>Os apps precisam de JavaScript. <a href="gnb.html">Naive Bayes</a> · <a href="lda.html">LDA</a> · <a href="qda.html">QDA</a> · <a href="margem-maxima.html">Margem máxima</a> · <a href="vetor-suporte.html">Vetor suporte</a> · <a href="svm-kernels.html">SVM</a> · <a href="arvore.html">Árvore</a> · <a href="floresta.html">Floresta</a> · <a href="knn.html">KNN</a></p></noscript>
 </main>
 <footer class="credit">
-  <p class="credit-full">Estes apps foram desenvolvidos em sala de aula, a pedido dos alunos, para visualizar melhor os classificadores, usando IA: Claude, Opus 5.5 no esforço alto. Disciplina Aprendizagem de Máquina I, da UFRJ, ministrada pelo Prof. Hugo Carvalho. Materiais didáticos do curso: <a href="https://github.com/HugoCarvalhoUFRJ/ap-maq" target="_blank" rel="noopener">github.com/HugoCarvalhoUFRJ/ap-maq</a>. A notação é a mesma do livro <a href="https://www.statlearning.com/" target="_blank" rel="noopener"><cite>An Introduction to Statistical Learning</cite></a>.</p>
-  <details class="credit-small"><summary>Sobre estes apps</summary><p>Estes apps foram desenvolvidos em sala de aula, a pedido dos alunos, para visualizar melhor os classificadores, usando IA: Claude, Opus 5.5 no esforço alto. Disciplina Aprendizagem de Máquina I, da UFRJ, ministrada pelo Prof. Hugo Carvalho. Materiais didáticos do curso: <a href="https://github.com/HugoCarvalhoUFRJ/ap-maq" target="_blank" rel="noopener">github.com/HugoCarvalhoUFRJ/ap-maq</a>. A notação é a mesma do livro <a href="https://www.statlearning.com/" target="_blank" rel="noopener"><cite>An Introduction to Statistical Learning</cite></a>.</p></details>
+  <p class="credit-full">Estes apps foram desenvolvidos por motivação pedagógica, a partir de perguntas dos alunos em sala de aula, para visualizar melhor os classificadores, usando IA: Claude, Opus 5.5 no esforço alto. Disciplina Aprendizagem de Máquina I, da UFRJ, ministrada pelo Prof. Hugo Carvalho. Materiais didáticos do curso: <a href="https://github.com/HugoCarvalhoUFRJ/ap-maq" target="_blank" rel="noopener">github.com/HugoCarvalhoUFRJ/ap-maq</a>. A notação é a mesma do livro <a href="https://www.statlearning.com/" target="_blank" rel="noopener"><cite>An Introduction to Statistical Learning</cite></a>.</p>
+  <details class="credit-small"><summary>Sobre estes apps</summary><p>Estes apps foram desenvolvidos por motivação pedagógica, a partir de perguntas dos alunos em sala de aula, para visualizar melhor os classificadores, usando IA: Claude, Opus 5.5 no esforço alto. Disciplina Aprendizagem de Máquina I, da UFRJ, ministrada pelo Prof. Hugo Carvalho. Materiais didáticos do curso: <a href="https://github.com/HugoCarvalhoUFRJ/ap-maq" target="_blank" rel="noopener">github.com/HugoCarvalhoUFRJ/ap-maq</a>. A notação é a mesma do livro <a href="https://www.statlearning.com/" target="_blank" rel="noopener"><cite>An Introduction to Statistical Learning</cite></a>.</p></details>
 </footer>
 <script>
 (() => {
@@ -142,7 +149,8 @@ noscript p { padding: 16px; }
       t.setAttribute('aria-selected', String(on));
       t.tabIndex = on ? 0 : -1;
     });
-    document.title = tab.dataset.title + ' · SVM Interativo';
+    tab.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    document.title = tab.dataset.title + ' · Classificadores Interativos';
     if (push && location.hash !== '#' + name) history.pushState(null, '', '#' + name);
   }
   tabs.forEach((t, i) => {
