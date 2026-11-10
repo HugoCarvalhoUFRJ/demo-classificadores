@@ -16,7 +16,7 @@ Site com apps para aprender classificadores arrastando pontos. Cada mudança rec
 
 Os apps multiclasse (Naive Bayes, LDA, QDA, Árvore, Floresta e KNN) aceitam até 4 classes e compartilham a mesma lista de conjuntos de dados.
 
-O site é estático e não tem etapa de compilação. Todo o cálculo roda no navegador. A única dependência externa são as fontes do Google Fonts, e os apps funcionam sem elas.
+O site é estático e não tem etapa de compilação. Todo o cálculo roda no navegador. A única dependência externa são as fontes do Google Fonts, porém os apps funcionam sem elas.
 
 Os pontos da opção "Fig. 9.3 do livro" foram estimados a partir da Fig. 9.3 de *An Introduction to Statistical Learning*. Os conjuntos "como na Fig. 4.6" e "como na Fig. 4.9" são gerados com a mesma ideia das figuras, não com os dados do livro. As Eqs. citadas nos apps usam a numeração do livro (edição com aplicações em Python).
 
