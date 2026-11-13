@@ -80,7 +80,9 @@ aside { grid-area: side; min-width: 0; display: grid; gap: 16px; align-content: 
 .seg button { border: 0; border-radius: 0; background: transparent; border-right: 1px solid var(--rule); }
 .seg button:last-child { border-right: 0; }
 .seg button[aria-pressed="true"] { background: var(--ink); color: var(--plot); }
-.acts { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.acts { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: flex-end; flex: 1 1 260px; min-width: 0; }
+/* A largura da lista de dados vem do espaço livre, não do texto da opção mais longa. */
+.acts select { flex: 1 1 200px; width: 0; min-width: 0; max-width: 430px; text-overflow: ellipsis; }
 button, select {
   font: 500 14px/1 var(--ui); color: var(--ink); background: var(--plot);
   border: 1px solid var(--rule); border-radius: 7px; padding: 9px 12px; min-height: 36px;
@@ -128,7 +130,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, .svlist:focus-v
 /* Gráfico: tela para as regiões, SVG por cima para curvas, eixos e pontos */
 .plotwrap {
   position: relative; aspect-ratio: 602 / 628; margin-inline: auto; max-width: 100%;
-  width: max(min(100%, 360px), min(100%, calc((100dvh - 285px) * 0.9586)));
+  width: max(min(100%, 360px), min(100%, calc((100dvh - 325px) * 0.9586)));
 }
 #cv { position: absolute; left: calc(54 / 602 * 100%); top: calc(8 / 628 * 100%); width: calc(525 / 602 * 100%); height: calc(552 / 628 * 100%); display: block; }
 svg#plot {
@@ -192,6 +194,44 @@ code { font: 400 12.5px/1.45 var(--code); }
 .copy { font-size: 12.5px; min-height: 30px; padding: 6px 8px; }
 .codehead { color: var(--muted); font-size: 12.5px; margin: 0 0 3px; }
 
+/* Linha dos dados: ruído, conjunto de teste e fronteira de Bayes */
+/* Texto só para leitores de tela */
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.datarow { display: flex; flex-wrap: wrap; gap: 4px 18px; align-items: center; }
+.datarow .ctl { flex: 1 1 220px; max-width: 400px; }
+.datarow .ctl label.word { font: 500 14px/1 var(--ui); }
+.chk { display: inline-flex; align-items: center; gap: 7px; cursor: pointer; white-space: nowrap; min-height: 30px; }
+.chk input { margin: 0; width: 16px; height: 16px; accent-color: var(--ink); }
+.chk svg { display: block; flex: none; }
+.chk.off { opacity: .55; cursor: default; }
+#layer-test { pointer-events: none; }
+.tpt circle { fill: var(--plot); stroke-width: 2.4; }
+.tpt.b circle { stroke: var(--blue); } .tpt.p circle { stroke: var(--pink); } .tpt.o circle { stroke: var(--orange); } .tpt.g circle { stroke: var(--green); }
+.tpt path { stroke: var(--ink); stroke-width: 1.8; stroke-linecap: round; }
+.bayes { stroke: var(--ink); stroke-width: 2.2; stroke-dasharray: 9 6; opacity: .8; }
+/* Desempates: bloco recolhido no painel */
+details.ties summary { cursor: pointer; font: 500 11.5px/1.2 var(--ui); letter-spacing: .07em; text-transform: uppercase; color: var(--muted); padding: 4px 0; }
+details.ties summary:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.ties dl { margin: 6px 0 0; font-size: 13.5px; line-height: 1.4; }
+.ties dt { font-weight: 600; margin-top: 6px; }
+.ties dd { margin: 2px 0 0; }
+/* Matriz de confusão no teste (Tabela 4.4) e medidas da Tabela 4.7 */
+.conf { border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: 13.5px; margin: 2px 0 6px; }
+.conf th, .conf td { padding: 3px 9px; text-align: right; border-bottom: 1px solid var(--rule); }
+.conf thead th { font: 500 12px/1.2 var(--ui); color: var(--muted); }
+.conf tbody th { text-align: left; font-weight: 500; }
+.conf td.dg { background: var(--tint); font-weight: 600; }
+.conf tbody tr:last-child th, .conf tbody tr:last-child td, .conf td.tot { color: var(--muted); }
+.conf tbody tr:last-child th, .conf tbody tr:last-child td { border-bottom: 0; }
+.metr { border-collapse: collapse; width: 100%; font-size: 13.5px; margin-top: 6px; }
+.metr th { text-align: left; font-weight: 500; padding: 4px 6px 4px 0; vertical-align: top; }
+.metr th small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; }
+.metr td { text-align: right; padding: 4px 0 4px 6px; vertical-align: top; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.metr td.def { text-align: left; color: var(--muted); font-family: var(--math); }
+.metr td small { display: block; color: var(--muted); font-size: 12px; }
+.metr thead th { font: 500 12px/1.2 var(--ui); color: var(--muted); text-align: right; }
+.metr thead th:first-child { text-align: left; }
+#posseg button { font-size: 13px; padding: 6px 10px; min-height: 30px; }
 @media (max-width: 900px) {
   .app { grid-template-columns: minmax(0, 1fr); grid-template-areas: "head" "main" "side"; }
   .plotwrap { width: 100%; }
@@ -228,12 +268,19 @@ code { font: 400 12.5px/1.45 var(--code); }
           <option value="spiral">Dados: espirais</option>
           <option value="board">Dados: tabuleiro</option>
           <option value="overlap">Dados: nuvens muito sobrepostas</option>
+          <option value="mix2">Dados: mistura de gaussianas (como na Fig. 2.13)</option>
           <option value="unbal">Dados: classes desbalanceadas</option>
           <option value="figure">Dados: Fig. 9.3 do livro</option>
         </select>
         <button id="reset">Restaurar dados</button>
       </div>
     </div>
+    <div class="datarow">
+      <div class="ctl"><label class="word" for="p-noise-n">Ruído <span class="math"><i>σ</i></span></label><input id="p-noise-n" type="number" min="0" max="1" step="0.05" inputmode="decimal"><input id="p-noise" type="range" min="0" max="1" step="0.05" aria-label="Ruído sigma somado aos pontos"></div>
+      <label class="chk" for="o-test" id="c-test"><input type="checkbox" id="o-test"><svg width="14" height="14" aria-hidden="true"><circle cx="7" cy="7" r="5" fill="none" stroke="currentColor" stroke-width="2"></circle></svg>Conjunto de teste</label>
+      <label class="chk" for="o-bayes" id="c-bayes" hidden><input type="checkbox" id="o-bayes"><svg width="26" height="14" aria-hidden="true"><line x1="0" y1="7" x2="26" y2="7" stroke="currentColor" stroke-width="2" stroke-dasharray="7 4"></line></svg>Fronteira de Bayes</label>
+    </div>
+
 
     <div class="seg" role="group" aria-label="Kernel" id="kernels" style="justify-self:start">
       <button id="k-linear" data-k="linear" aria-pressed="false">Linear</button>
@@ -267,12 +314,14 @@ code { font: 400 12.5px/1.45 var(--code); }
       <svg id="plot" viewBox="0 0 602 628" data-tool="move" aria-label="Gráfico de dispersão de X1 por X2 com a fronteira de decisão do SVM. Os pontos podem ser arrastados.">
         <defs><clipPath id="clip"><rect id="cliprect"></rect></clipPath></defs>
         <g clip-path="url(#clip)">
+          <path id="bayes" class="curve bayes"></path>
           <path id="ghost" class="curve ghost"></path>
           <g id="layer-margins"><path id="marg-b" class="curve marg"></path><path id="marg-p" class="curve marg"></path></g>
           <path id="hyper" class="curve hyper"></path>
         </g>
         <rect class="frame" id="frame"></rect>
         <g id="axes"></g>
+        <g id="layer-test"></g>
         <g id="layer-points"></g>
       </svg>
     </div>
@@ -285,6 +334,7 @@ code { font: 400 12.5px/1.45 var(--code); }
         <div class="bigM"><i>M</i><span id="v-eq">=</span> <span id="v-m"></span></div>
         <span id="pill" class="pill"></span>
       </div>
+      <p class="note" id="v-data"></p>
       <p class="note">M = 1/‖β‖, com β na escala em que a margem fica em <span class="math"><i>f</i>(<i>x</i>) = ±1</span>. Com kernel não linear, a largura da faixa varia no plano.</p>
     </section>
 
@@ -325,6 +375,20 @@ code { font: 400 12.5px/1.45 var(--code); }
         <label for="o-reg"><input type="checkbox" id="o-reg" checked>
           <svg width="30" height="14" aria-hidden="true"><g fill="var(--blue-dot)"><circle cx="3" cy="3" r="1.3"></circle><circle cx="9" cy="3" r="1.3"></circle><circle cx="3" cy="11" r="1.3"></circle><circle cx="9" cy="11" r="1.3"></circle></g><g fill="var(--pink-dot)"><circle cx="21" cy="3" r="1.3"></circle><circle cx="27" cy="3" r="1.3"></circle><circle cx="21" cy="11" r="1.3"></circle><circle cx="27" cy="11" r="1.3"></circle></g></svg>Regiões de decisão</label>
       </div>
+    </section>
+
+    <section>
+      <details class="ties">
+        <summary>Desempates</summary>
+        <dl>
+          <dt>Este app</dt>
+          <dd>Em cima da fronteira, onde <i>f</i>(<i>x</i>) = 0, conta como azul (<i>y</i> = +1).</dd>
+          <dt>scikit-learn, <code>SVC</code></dt>
+          <dd>O mesmo: <i>f</i>(<i>x</i>) = 0 vira a classe +1, qualquer que seja a ordem dos dados.</dd>
+          <dt>R, <code>e1071::svm</code></dt>
+          <dd><i>f</i>(<i>x</i>) = 0 vira a classe que aparece <b>em segundo lugar</b> nos dados (o libsvm numera as classes pela ordem em que aparecem), então depende da ordem das linhas.</dd>
+        </dl>
+      </details>
     </section>
 
     <section>
@@ -808,26 +872,40 @@ const Solver = (() => {
   const CX = (X0+X1)/2, CY = (Y0+Y1)/2;
   const C2 = -1; // rótulo da segunda classe (roxo)
   const bound = p => ({ x: Math.max(X0+.08, Math.min(X1-.08, p.x)), y: Math.max(Y0+.08, Math.min(Y1-.08, p.y)), c: p.c });
+  // Mistura de gaussianas, como na Fig. 2.13: cada classe tem 10 médias, sorteadas uma vez e fixas;
+  // cada ponto escolhe uma delas ao acaso e soma N(0, s²I). A densidade é conhecida, o que dá a fronteira e o erro de Bayes.
+  const MIX = {
+    mix2: { seed: 211, n: 30, s: .36, centers: [[CX + .5, CY - .45], [CX - .5, CY + .45]] },
+  };
+  for (const M of Object.values(MIX)) { const r = rng(M.seed); M.means = M.centers.map(([a, b]) => Array.from({ length: 10 }, () => [a + .8*r.g(), b + .8*r.g()])); }
+  const mixture = M => (s = 0) => {
+    const r = rng(M.seed + 1 + s), pts = [];
+    M.means.forEach((ms, k) => { for (let i = 0; i < M.n; i++) { const m = ms[Math.floor(r.u()*10)]; pts.push({ x: m[0] + M.s*r.g(), y: m[1] + M.s*r.g(), c: k === 1 ? C2 : k + 1 }); } });
+    return pts;
+  };
+  // Cada gerador recebe s: s = 0 dá os dados de sempre; s = TESTE, outra amostra da mesma distribuição (o conjunto de teste).
+  const TESTE = 1000;
   const DATA = {
-    ring() {
-      const r = rng(11), pts = [];
+    mix2: mixture(MIX.mix2),
+    ring(s = 0) {
+      const r = rng(11 + s), pts = [];
       for (let i = 0; i < 18; i++) { const t = 2*Math.PI*(i + .4*r.u())/18, R = 2.05 + .2*r.g(); pts.push({ x: CX + R*Math.cos(t), y: CY + R*Math.sin(t), c: 1 }); }
       for (let i = 0; i < 14; i++) pts.push({ x: CX + .48*r.g(), y: CY + .48*r.g(), c: -1 });
       return pts;
     },
-    parab() {
-      const r = rng(23), pts = [];
+    parab(s = 0) {
+      const r = rng(23 + s), pts = [];
       for (let i = 0; i < 16; i++) { const x = X0 + .4 + i*(PW/S - .8)/15; const h = .45*(x-CX)*(x-CX) + .3; pts.push({ x, y: h + .35 + .9*r.u(), c: 1 }); }
       for (let i = 0; i < 16; i++) { const x = X0 + .4 + i*(PW/S - .8)/15 + .1*r.g(); const h = .45*(x-CX)*(x-CX) + .3; pts.push({ x, y: h - .35 - .9*r.u(), c: -1 }); }
       return pts;
     },
-    xor() {
-      const r = rng(37), pts = [], d = 1.28;
+    xor(s = 0) {
+      const r = rng(37 + s), pts = [], d = 1.28;
       for (const [sx, sy, c] of [[1,1,1],[-1,-1,1],[1,-1,-1],[-1,1,-1]]) for (let i = 0; i < 8; i++) pts.push({ x: CX + sx*d + .36*r.g(), y: CY + sy*d + .36*r.g(), c });
       return pts;
     },
-    moons() {
-      const r = rng(53), pts = [], n = 16, R = 1.55;
+    moons(s = 0) {
+      const r = rng(53 + s), pts = [], n = 16, R = 1.55;
       for (let i = 0; i < n; i++) {
         const t = Math.PI*i/(n-1);
         pts.push({ x: CX - .75 + R*Math.cos(t) + .1*r.g(), y: CY - .1 + R*Math.sin(t) + .1*r.g(), c: 1 });
@@ -836,8 +914,8 @@ const Solver = (() => {
       return pts;
     },
     // Duas espirais entrelaçadas
-    spiral() {
-      const r = rng(131), pts = [];
+    spiral(s = 0) {
+      const r = rng(131 + s), pts = [];
       for (const [c, off] of [[1, 0], [C2, Math.PI]]) for (let i = 0; i < 20; i++) {
         const t = 0.12 + 0.88*i/19, R = 0.3 + 2.05*t, a = 2.6*Math.PI*t + off;
         pts.push({ x: CX + R*Math.cos(a) + .06*r.g(), y: CY + R*Math.sin(a) + .06*r.g(), c });
@@ -845,22 +923,22 @@ const Solver = (() => {
       return pts;
     },
     // Tabuleiro 3 × 3: classes alternadas, bom para árvores e ruim para fronteiras lineares
-    board() {
-      const r = rng(137), pts = [], s = 1.6;
+    board(s = 0) {
+      const r = rng(137 + s), pts = [], w = 1.6;
       for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) for (let k = 0; k < 4; k++)
-        pts.push({ x: CX - 1.5*s + (i + .12 + .76*r.u())*s, y: CY - 1.5*s + (j + .12 + .76*r.u())*s, c: (i + j) % 2 ? C2 : 1 });
+        pts.push({ x: CX - 1.5*w + (i + .12 + .76*r.u())*w, y: CY - 1.5*w + (j + .12 + .76*r.u())*w, c: (i + j) % 2 ? C2 : 1 });
       return pts;
     },
     // Duas nuvens quase em cima uma da outra: K pequeno no KNN e árvores fundas se ajustam demais
-    overlap() {
-      const r = rng(139), pts = [];
+    overlap(s = 0) {
+      const r = rng(139 + s), pts = [];
       for (let i = 0; i < 25; i++) pts.push({ x: CX - .4 + .8*r.g(), y: CY + .4 + .8*r.g(), c: 1 });
       for (let i = 0; i < 25; i++) pts.push({ x: CX + .4 + .8*r.g(), y: CY - .4 + .8*r.g(), c: C2 });
       return pts;
     },
     // 30 contra 6: as priors estimadas empurram a fronteira para o lado da classe rara
-    unbal() {
-      const r = rng(149), pts = [];
+    unbal(s = 0) {
+      const r = rng(149 + s), pts = [];
       for (let i = 0; i < 30; i++) pts.push({ x: CX - .55 + .7*r.g(), y: CY + .45 + .7*r.g(), c: 1 });
       for (let i = 0; i < 6; i++) pts.push({ x: CX + .85 + .45*r.g(), y: CY - .65 + .45*r.g(), c: C2 });
       return pts;
@@ -871,12 +949,19 @@ const Solver = (() => {
       return [...B.map(([x, y]) => ({ x, y, c: 1 })), ...P.map(([x, y]) => ({ x, y, c: -1 }))];
     },
   };
-  const loadData = name => DATA[name]().map(bound);
+  const FIXOS = new Set(['figure']); // pontos fixos: não há outra amostra para servir de teste
+  const hash = t => [...t].reduce((h, ch) => Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0, 2166136261);
+  // Ruído σ: cada ponto anda σ·zᵢ, com zᵢ ~ N(0, I) fixo por ponto; aumentar σ mistura as classes aos poucos. σ = 0 dá os dados de sempre.
+  function loadData(name, sigma = 0, s = 0) {
+    const pts = DATA[name](s);
+    if (sigma > 0) { const r = rng(hash(name) + s); for (const p of pts) { p.x += sigma*r.g(); p.y += sigma*r.g(); } }
+    return pts.map(bound);
+  }
 
   const state = {
     points: loadData('ring'), dataset: 'ring', kernel: 'rbf', C: 2, hint: 0, d: 3, gRbf: 1, gSig: 0.1, r: 0,
     tool: 'move', addClass: 1, sel: -1, drag: -1, sol: null, flash: '', F0: null, ghostD: '',
-    show: { margin: true, sv: true, reg: true },
+    show: { margin: true, sv: true, reg: true, test: false, bayes: false }, test: [], sigma: 0, edited: false, testErr: 0, K: 2,
   };
   const kernelSpec = () => {
     const k = state.kernel;
@@ -931,7 +1016,7 @@ const Solver = (() => {
   const F = new Float64Array(NX*NY);
 
   // Curvas de nível por marching squares, com os segmentos ligados em polilinhas (o tracejado depende disso).
-  function contour(level) {
+  function contour(level, G = F) {
     const adj = new Map(), pos = new Map();
     const link = (a, b) => {
       if (!adj.has(a)) adj.set(a, []);
@@ -941,16 +1026,16 @@ const Solver = (() => {
     const hKey = (i, j) => 2*(j*NX + i), vKey = (i, j) => 2*(j*NX + i) + 1;
     const hPos = (i, j) => {
       const k = hKey(i, j);
-      if (!pos.has(k)) { const a = F[j*NX+i], b = F[j*NX+i+1], t = (level-a)/(b-a); pos.set(k, [X0 + (i+t)*HX, Y0 + j*HY]); }
+      if (!pos.has(k)) { const a = G[j*NX+i], b = G[j*NX+i+1], t = (level-a)/(b-a); pos.set(k, [X0 + (i+t)*HX, Y0 + j*HY]); }
       return k;
     };
     const vPos = (i, j) => {
       const k = vKey(i, j);
-      if (!pos.has(k)) { const a = F[j*NX+i], b = F[(j+1)*NX+i], t = (level-a)/(b-a); pos.set(k, [X0 + i*HX, Y0 + (j+t)*HY]); }
+      if (!pos.has(k)) { const a = G[j*NX+i], b = G[(j+1)*NX+i], t = (level-a)/(b-a); pos.set(k, [X0 + i*HX, Y0 + (j+t)*HY]); }
       return k;
     };
     for (let j = 0; j < NY-1; j++) for (let i = 0; i < NX-1; i++) {
-      const a = F[j*NX+i], b = F[j*NX+i+1], c = F[(j+1)*NX+i+1], d = F[(j+1)*NX+i];
+      const a = G[j*NX+i], b = G[j*NX+i+1], c = G[(j+1)*NX+i+1], d = G[(j+1)*NX+i];
       const m = (a >= level ? 1 : 0) | (b >= level ? 2 : 0) | (c >= level ? 4 : 0) | (d >= level ? 8 : 0);
       if (m === 0 || m === 15) continue;
       const B = () => hPos(i, j), R = () => vPos(i+1, j), T = () => hPos(i, j+1), L = () => vPos(i, j);
@@ -1049,6 +1134,146 @@ const Solver = (() => {
     }
   }
 
+  /* ---------- conjunto de teste: outra amostra do mesmo gerador, fora do ajuste ---------- */
+  let tnodes = [];
+  function buildTest() {
+    const g = $('layer-test');
+    g.textContent = '';
+    tnodes = state.test.map(p => {
+      const n = el('g', 'tpt ' + (p.c === 1 ? 'b' : 'p'), g);
+      n.setAttribute('data-c', p.c);
+      attrs(el('circle', '', n), { cx: px(p.x), cy: py(p.y), r: 5.2 });
+      return { n, x: el('path', '', n) };
+    });
+  }
+  function refreshTest() {
+    state.test = state.show.test && !FIXOS.has(state.dataset) ? loadData(state.dataset, state.sigma, TESTE) : [];
+    buildTest();
+  }
+
+  /* ---------- Bayes: só nas misturas, cuja densidade é conhecida ---------- */
+  // Com o ruído σ, cada componente vira N(m, (s² + σ²)I). As classes têm o mesmo n, então as priors são iguais.
+  let bayes = null;
+  function bayesModel() {
+    const M = MIX[state.dataset];
+    if (!M) return null;
+    const v = M.s*M.s + state.sigma*state.sigma, K = M.means.length;
+    const logp = (x, y, out) => {
+      for (let k = 0; k < K; k++) {
+        let mx = -Infinity;
+        const e = M.means[k].map(m => { const a = x - m[0], b = y - m[1], t = -(a*a + b*b)/(2*v); if (t > mx) mx = t; return t; });
+        let s = 0; for (const t of e) s += Math.exp(t - mx);
+        out[k] = mx + Math.log(s);
+      }
+      return out;
+    };
+    // Erro de Bayes, E[1 − maxₖ Pr(Y = k | X)], por Monte Carlo com semente fixa (20 000 sorteios: erro-padrão < 0,3 ponto percentual).
+    const r = rng(M.seed + 77), out = new Float64Array(K), N = 20000, sd = Math.sqrt(v);
+    let err = 0;
+    for (let i = 0; i < N; i++) {
+      const m = M.means[i % K][Math.floor(r.u()*10)];
+      logp(m[0] + sd*r.g(), m[1] + sd*r.g(), out);
+      let mx = -Infinity, s = 0;
+      for (const t of out) if (t > mx) mx = t;
+      for (const t of out) s += Math.exp(t - mx);
+      err += 1 - 1/s;
+    }
+    // Fronteira: nível 0 de log fₐ − maxₖ≠ₐ log fₖ, como nos gerativos
+    const F = Array.from({ length: K }, () => new Float64Array(NX*NY)), G = new Float64Array(NX*NY);
+    for (let j = 0, q = 0; j < NY; j++) for (let i = 0; i < NX; i++, q++) { logp(X0 + i*HX, Y0 + j*HY, out); for (let k = 0; k < K; k++) F[k][q] = out[k]; }
+    let d = '';
+    for (let a = 0; a < (K === 2 ? 1 : K); a++) {
+      for (let q = 0; q < G.length; q++) { let o = -Infinity; for (let k = 0; k < K; k++) if (k !== a && F[k][q] > o) o = F[k][q]; G[q] = F[a][q] - o; }
+      d += contour(0, G);
+    }
+    return { err: err/N, d };
+  }
+  function refreshBayes() {
+    bayes = bayesModel();
+    $('c-bayes').hidden = !bayes;
+    $('bayes').setAttribute('d', bayes && state.show.bayes ? bayes.d : '');
+  }
+  function dataLine(m) {
+    const n = state.points.length, cnt = [null, state.points.filter(p => p.c === 1).length, state.points.filter(p => p.c !== 1).length];
+    const pct = (a, b) => `<span class="num">${num(100*a/b, 1)}%</span>`;
+    let s = `<i>n</i> = ${n}: ` + cnt.slice(1).map((v, k) => `<span class="chip ${k ? 'p' : 'b'}"></span><span class="num">${v}</span><span class="sr"> ${k ? (v === 1 ? 'roxo' : 'roxos') : (v === 1 ? 'azul' : 'azuis')}</span>`).join(' ');
+    const parts = [];
+    const ok = m.kind === 'ok';
+    if (m.kind === 'ok') parts.push(`erro de treino ${pct(m.wrong.length, n)}`);
+    if (state.test.length) parts.push(`de teste ${ok ? pct(state.testErr, state.test.length) : '—'} (<i>m</i> = ${state.test.length})`);
+    else if (state.show.test && FIXOS.has(state.dataset)) parts.push('sem conjunto de teste: estes pontos são fixos');
+    if (bayes) parts.push(`de Bayes ≈ ${pct(bayes.err, 1)}`);
+    if (parts.length) s += '<br>' + parts.join(' · ').replace(/^de /, 'erro de ');
+    $('v-data').innerHTML = s;
+  }
+
+  // Classes da matriz de confusão: y = +1 (azul) e y = −1 (roxo)
+  const CONF = { classes: () => [1, -1], css: c => c === 1 ? 'b' : 'p', nome: c => c === 1 ? 'azul' : 'roxo' };
+
+  /* ---------- matriz de confusão no teste (Tabela 4.4) e medidas da Tabela 4.7 ---------- */
+  // Só aparece com o conjunto de teste ligado. Linhas: classe prevista; colunas: a verdadeira, como no livro.
+  const confSec = document.createElement('section');
+  confSec.id = 's-conf';
+  confSec.hidden = true;
+  confSec.innerHTML = '<p class="lab">Matriz de confusão no teste, como na Tabela 4.4</p><div id="v-conf"></div><div class="seg" role="group" aria-label="Classe positiva" id="posseg"></div><div id="v-metr"></div><p class="note" id="v-confnote"></p>';
+  $('v-data').closest('section').after(confSec);
+  state.pos = CONF.classes()[0];
+  function confusion(ok) {
+    const T = state.test;
+    confSec.hidden = !T.length;
+    if (!T.length) return;
+    const cl = CONF.classes(), K = cl.length, ix = new Map(cl.map((c, j) => [c, j])), m = T.length;
+    const ch = c => `<span class="chip ${CONF.css(c)}"></span><span class="sr">${CONF.nome(c)}</span>`;
+    const ps = $('posseg');
+    if (!ok) { $('v-conf').innerHTML = '<p class="note">Sem classificador ajustado, não há previsões para comparar.</p>'; $('v-metr').innerHTML = ''; $('v-confnote').innerHTML = ''; ps.hidden = true; return; }
+    const M = cl.map(() => new Array(K).fill(0));
+    T.forEach((p, i) => { const a = ix.get(state.testPred[i]), b = ix.get(p.c); if (a !== undefined && b !== undefined) M[a][b]++; });
+    const lin = M.map(r => r.reduce((s, v) => s + v, 0)), col = cl.map((_, j) => M.reduce((s, r) => s + r[j], 0));
+    let h = `<table class="conf"><caption class="sr">Matriz de confusão no conjunto de teste: linhas com a classe prevista, colunas com a verdadeira</caption><thead><tr><th scope="col" rowspan="2">Previsto</th><th scope="colgroup" colspan="${K}">Verdadeiro</th><th scope="col" rowspan="2">Total</th></tr><tr>${cl.map(c => `<th scope="col">${ch(c)}</th>`).join('')}</tr></thead><tbody>`;
+    cl.forEach((c, a) => { h += `<tr><th scope="row">${ch(c)}</th>${M[a].map((v, b) => `<td${a === b ? ' class="dg"' : ''}>${v}</td>`).join('')}<td class="tot">${lin[a]}</td></tr>`; });
+    h += `<tr><th scope="row">Total</th>${col.map(v => `<td>${v}</td>`).join('')}<td>${m}</td></tr></tbody></table>`;
+    $('v-conf').innerHTML = h;
+    const val = (a, b) => b ? `${num(100*a/b, 1)}%<small>${a}/${b}</small>` : '—<small>sem casos</small>';
+    const certos = cl.reduce((s, _, j) => s + M[j][j], 0);
+    const erro = val(m - certos, m);
+    let r;
+    ps.hidden = K !== 2;
+    if (K === 2) {
+      if (!ix.has(state.pos)) state.pos = cl[0];
+      ps.innerHTML = cl.map(c => `<button data-c="${c}" aria-pressed="${c === state.pos}"><span class="chip ${CONF.css(c)}"></span>+ = ${CONF.nome(c)}</button>`).join('');
+      const p = ix.get(state.pos), q = 1 - p, TP = M[p][p], FN = M[q][p], FP = M[p][q], TN = M[q][q];
+      const P = TP + FN, N = FP + TN, Pe = TP + FP, Ne = TN + FN;
+      r = `<tr><th scope="row">Taxa de erro</th><td class="def">(FP + FN)/(N + P)</td><td>${erro}</td></tr>`
+        + `<tr><th scope="row">Taxa de falsos positivos<small>erro tipo I, 1 − especificidade</small></th><td class="def">FP/N</td><td>${val(FP, N)}</td></tr>`
+        + `<tr><th scope="row">Taxa de verdadeiros positivos<small>sensibilidade, recall, poder</small></th><td class="def">TP/P</td><td>${val(TP, P)}</td></tr>`
+        + `<tr><th scope="row">Valor preditivo positivo<small>precisão</small></th><td class="def">TP/P*</td><td>${val(TP, Pe)}</td></tr>`
+        + `<tr><th scope="row">Valor preditivo negativo</th><td class="def">TN/N*</td><td>${val(TN, Ne)}</td></tr>`
+        + `<tr><th scope="row">F1<small>média harmônica de precisão e sensibilidade (fora do livro)</small></th><td class="def">2TP/(2TP + FP + FN)</td><td>${val(2*TP, 2*TP + FP + FN)}</td></tr>`;
+      $('v-metr').innerHTML = `<table class="metr"><caption class="sr">Medidas da Tabela 4.7 no conjunto de teste</caption><thead><tr><th scope="col">Medida</th><th scope="col"><span class="sr">Definição</span></th><th scope="col"><span class="sr">Valor</span></th></tr></thead><tbody>${r}</tbody></table>`;
+      $('v-confnote').innerHTML = `As quatro medidas depois da taxa de erro são as da Tabela 4.7; o F1 não está no livro. Positivo (+) é a classe ${CONF.nome(state.pos)}; como na Tabela 4.6, P e N são os totais verdadeiros de + e −; P* e N*, os totais previstos. No Python, <code>f1_score(y_teste, previsto, pos_label=…)</code>.`;
+    } else {
+      ps.innerHTML = '';
+      // Por classe, contra as outras: TP = M[j][j], FN = resto da coluna, FP = resto da linha. F1 = 2TP/(2TP + FP + FN).
+      const pc = (a, b) => b ? `${num(100*a/b, 1)}%` : '—';
+      const rec = cl.map((_, j) => col[j] ? M[j][j]/col[j] : 0), pre = cl.map((_, j) => lin[j] ? M[j][j]/lin[j] : 0);
+      const f1d = cl.map((_, j) => col[j] + lin[j]), f1 = cl.map((_, j) => f1d[j] ? 2*M[j][j]/f1d[j] : 0);
+      const media = v => v.reduce((s, x) => s + x, 0)/K, semPrev = lin.some(v => v === 0);
+      r = `<tr><th scope="row">Taxa de erro</th><td colspan="3">${erro}</td></tr>`
+        + cl.map((c, j) => `<tr><th scope="row">${ch(c)} contra as outras</th><td>${pc(M[j][j], col[j])}</td><td>${lin[j] ? pc(M[j][j], lin[j]) : '—<small>sem previsões</small>'}</td><td>${pc(2*M[j][j], f1d[j])}</td></tr>`).join('')
+        + `<tr><th scope="row">Média macro<small>cada classe pesa igual</small></th><td>${num(100*media(rec), 1)}%</td><td>${num(100*media(pre), 1)}%</td><td>${num(100*media(f1), 1)}%</td></tr>`
+        + `<tr><th scope="row">Média micro<small>= 1 − taxa de erro</small></th><td>${pc(certos, m)}</td><td>${pc(certos, m)}</td><td>${pc(certos, m)}</td></tr>`;
+      $('v-metr').innerHTML = `<table class="metr"><caption class="sr">Sensibilidade, precisão e F1 de cada classe no conjunto de teste, com as médias macro e micro</caption><thead><tr><th scope="col">Medida</th><th scope="col">Sens.</th><th scope="col">Precisão</th><th scope="col">F1</th></tr></thead><tbody>${r}</tbody></table>`;
+      $('v-confnote').innerHTML = `Com ${K} classes, o livro não define essas medidas, nem o F1: cada classe faz o papel de + contra as outras juntas (sensibilidade: acertos sobre o total verdadeiro da classe; precisão: acertos sobre o total previsto; F1 = 2TP/(2TP + FP + FN), a média harmônica das duas). A média macro é a média simples das classes, e por isso não esconde uma classe pequena mal classificada. A micro soma TP, FP e FN de todas as classes; com um rótulo por ponto, sensibilidade, precisão e F1 micro são todas iguais à acurácia, 1 − taxa de erro.${semPrev ? ' Uma classe sem previsões tem precisão indefinida; na média macro ela entra como 0, como no scikit-learn.' : ''} No Python, <code>classification_report(y_teste, previsto)</code> mostra tudo isso (com o verdadeiro primeiro).`;
+    }
+    $('v-confnote').innerHTML += ' Em R, <code>table(previsto, y_teste)</code> e, no Python, <code>confusion_table(previsto, y_teste)</code> do ISLP dão esta orientação; o <code>confusion_matrix</code> do scikit-learn põe a classe verdadeira nas linhas.';
+  }
+  $('posseg').addEventListener('click', ev => {
+    const b = ev.target.closest('button');
+    if (!b) return;
+    state.pos = Number(b.dataset.c);
+    render();
+  });
+
   /* ---------- pontos ---------- */
   const coarse = window.matchMedia && matchMedia('(pointer: coarse)').matches;
   let nodes = [];
@@ -1110,6 +1335,20 @@ const Solver = (() => {
       else nd.cross.style.display = 'none';
       nd.n.setAttribute('aria-label', `Ponto ${className(p.c)} em ${coord(p)}${svset.has(i) ? ', vetor suporte' : ''}`);
     });
+    // Conjunto de teste: f(x) ≥ 0 conta como azul, como nas regiões pintadas
+    const F1 = new Float64Array(1), fOk = s.kind === 'ok'; // sem classificador (β = 0 ou sem solução), sem erros de teste
+    state.testErr = 0;
+    state.testPred = [];
+    state.test.forEach((p, i) => {
+      let f = s.b;
+      if (s.kind === 'ok' && !(s.M === null && state.kernel !== 'sigmoid')) { Solver.evalGrid(pts, s, k, F1, 1, 1, p.x, 0, p.y, 0); f = F1[0]; }
+      state.testPred[i] = f >= 0 ? 1 : -1;
+      const wrong = fOk && state.testPred[i] !== p.c, x = px(p.x), y = py(p.y), c = 3.4;
+      if (wrong) state.testErr++;
+      tnodes[i].x.setAttribute('d', wrong ? `M${x-c} ${y-c}L${x+c} ${y+c}M${x+c} ${y-c}L${x-c} ${y+c}` : '');
+    });
+    dataLine(s);
+    confusion(fOk);
     renderPanel();
   }
 
@@ -1173,7 +1412,7 @@ const Solver = (() => {
   const HINT = {
     linear: 'O kernel linear reproduz o classificador de vetor suporte. Em dados não lineares, a reta não acompanha a forma das classes.',
     poly: 'Aumente o grau d: a fronteira ganha flexibilidade e, com C pequeno, tende a se ajustar demais.',
-    rbf: 'Aumente γ: cada ponto passa a influenciar só a própria vizinhança e a fronteira se fecha em torno dos pontos.',
+    rbf: 'Aumente γ: a influência de cada ponto cai mais depressa com a distância, fica praticamente restrita à vizinhança dele, e a fronteira se fecha em torno dos pontos.',
     sigmoid: 'O kernel sigmoide nem sempre é positivo semidefinido: a solução pode ser instável e depender da ordem dos pontos. Experimente γ pequeno e r ≤ 0.',
   };
 
@@ -1252,7 +1491,7 @@ const Solver = (() => {
     const i = state.drag >= 0 ? state.drag : state.sel;
     if (i < 0 || !pts[i]) {
       if (!state.hasBoundary) {
-        say.textContent = (state.kernel === 'linear' && s.M === null ? 'Aqui w = 0: nenhuma reta ajuda, e todo o plano recebe a classe majoritária. Experimente outro kernel.' : 'Nenhuma fronteira cruza o gráfico: todo o plano recebe a mesma classe. Mude o kernel ou os parâmetros.');
+        say.textContent = (state.kernel === 'linear' && s.M === null ? 'Aqui β = 0: nenhuma reta ajuda, e todo o plano recebe uma só classe (a mais numerosa; com classes do mesmo tamanho, qualquer β₀ entre −1 e 1 é ótimo). Experimente outro kernel.' : 'Nenhuma fronteira cruza o gráfico: todo o plano recebe a mesma classe. Mude o kernel ou os parâmetros.');
       } else {
         say.textContent = state.tool === 'move' ? HINT[state.kernel]
           : state.tool === 'add' ? `Clique no gráfico para adicionar um ponto ${className(state.addClass)}.`
@@ -1303,7 +1542,7 @@ const Solver = (() => {
       return;
     }
     state.points.splice(i, 1);
-    state.sel = -1; state.flash = '';
+    state.sel = -1; state.flash = ''; state.edited = true;
     buildPoints();
     render();
   }
@@ -1314,6 +1553,7 @@ const Solver = (() => {
     else if (state.tool === 'remove' && i >= 0) { ev.preventDefault(); removePoint(i); }
     else if (state.tool === 'add' && inPlot(d)) {
       state.points.push({ x: clampX(d.x), y: clampY(d.y), c: state.addClass });
+      state.edited = true;
       buildPoints();
       startDrag(state.points.length - 1, ev);
       render();
@@ -1351,7 +1591,7 @@ const Solver = (() => {
     const dir = { ArrowLeft: [-1,0], ArrowRight: [1,0], ArrowUp: [0,1], ArrowDown: [0,-1] }[ev.key];
     if (dir) {
       p.x = clampX(p.x + dir[0]*step); p.y = clampY(p.y + dir[1]*step);
-      state.sel = i; state.flash = '';
+      state.sel = i; state.flash = ''; state.edited = true;
       ev.preventDefault();
       render();
     } else if (ev.key === 'Delete' || ev.key === 'Backspace') {
@@ -1424,16 +1664,38 @@ const Solver = (() => {
   $('t-addb').setAttribute('aria-label', 'Adicionar ponto azul');
   $('t-addp').setAttribute('aria-label', 'Adicionar ponto roxo');
 
-  function setData(name) {
+  function setData(name, flash = '') {
     state.dataset = name;
-    state.points = loadData(name);
-    state.sel = -1; state.drag = -1; state.F0 = null; state.flash = ''; state.hint = 0;
+    state.points = loadData(name, state.sigma);
+    state.sel = -1; state.drag = -1; state.F0 = null; state.flash = flash; state.hint = 0; state.edited = false;
+    $('o-test').disabled = FIXOS.has(name);
+    $('c-test').classList.toggle('off', FIXOS.has(name));
+    refreshTest();
+    refreshBayes();
     fixInfeasible();
     buildPoints();
     render();
   }
   $('dataset').addEventListener('change', e => setData(e.target.value));
   $('reset').addEventListener('click', () => setData(state.dataset));
+  // Ruído: sorteia de novo a partir do gerador (edições à mão se perdem, e a narração avisa)
+  const setNoise = v => {
+    if (v === state.sigma) return;
+    const edited = state.edited;
+    state.sigma = v;
+    setData(state.dataset, `Ruído σ = ${num(v)}: pontos sorteados de novo${edited ? '; as edições feitas à mão foram descartadas' : ''}.`);
+    if (document.activeElement !== $('p-noise-n')) $('p-noise-n').value = v;
+    if (document.activeElement !== $('p-noise')) $('p-noise').value = v;
+  };
+  $('p-noise').addEventListener('input', e => setNoise(Number(e.target.value)));
+  $('p-noise-n').addEventListener('input', e => { const v = parseFloat(String(e.target.value).replace(',', '.')); if (Number.isFinite(v) && v >= 0 && v <= 1) setNoise(v); });
+  $('p-noise-n').addEventListener('blur', () => { $('p-noise-n').value = state.sigma; });
+  $('p-noise').value = $('p-noise-n').value = 0;
+  $('o-test').checked = $('o-bayes').checked = false; // o navegador pode restaurar caixas marcadas ao recarregar
+  $('o-test').addEventListener('change', e => { state.show.test = e.target.checked; refreshTest(); render(); });
+  $('o-bayes').addEventListener('change', e => { state.show.bayes = e.target.checked; refreshBayes(); render(); });
+  // O n de cada conjunto aparece na própria lista
+  for (const o of $('dataset').options) o.textContent += ` · n = ${DATA[o.value]().length}`;
 
   const copy = (btn, id) => $(btn).addEventListener('click', () => {
     const text = $(id).textContent, b = $(btn);
@@ -1461,6 +1723,9 @@ const Solver = (() => {
   readColors();
   drawAxes();
   buildPoints();
+  $('o-test').disabled = FIXOS.has(state.dataset);
+  $('c-test').classList.toggle('off', FIXOS.has(state.dataset));
+  refreshBayes();
   renderControls({});
   computeAndDraw();
 })();

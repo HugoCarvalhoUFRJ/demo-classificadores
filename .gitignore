@@ -1,0 +1,8 @@
+# Livro: não pode ir para o repositório público
+\[ITSL\].pdf
+# Resultados e caches dos testes
+testes/resultados/
+testes/__pycache__/
+__pycache__/
+# Instruções para o Claude Code: ficam só na máquina local
+CLAUDE.md

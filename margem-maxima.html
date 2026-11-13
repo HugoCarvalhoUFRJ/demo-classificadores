@@ -562,7 +562,7 @@ const Solver = (() => {
     const i = state.drag >= 0 ? state.drag : state.sel;
     if (i < 0 || !pts[i]) {
       say.textContent = state.tool === 'move'
-        ? 'Experimente mover um ponto longe da faixa: o hiperplano fica parado. Depois mova um ponto com anel.'
+        ? 'Experimente mover um ponto longe da faixa: o hiperplano fica parado enquanto o ponto não encostar na faixa. Depois mova um ponto com anel.'
         : state.tool === 'add' ? `Clique no gráfico para adicionar um ponto ${className(state.addClass)}.`
         : 'Clique em um ponto para removê-lo.';
       return;

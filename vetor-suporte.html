@@ -839,7 +839,7 @@ const Solver = (() => {
     if (i < 0 || !pts[i]) {
       say.textContent = state.tool === 'move'
         ? (s.hard ? 'Com C = 0, nenhum ponto pode violar a margem. Aumente C e veja a margem alargar.'
-                  : 'Mova C e veja a margem mudar. Pontos sem anel estão fora da margem: movê-los não altera a solução.')
+                  : 'Mova C e veja a margem mudar. Pontos sem anel estão fora da margem: movê-los não altera a solução enquanto não encostarem na faixa.')
         : state.tool === 'add' ? `Clique no gráfico para adicionar um ponto ${className(state.addClass)}.`
         : 'Clique em um ponto para removê-lo.';
       return;

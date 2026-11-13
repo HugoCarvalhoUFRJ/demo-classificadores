@@ -86,7 +86,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, .scrollbox:focu
 .say { min-height: 3.1em; display: flex; align-items: center; gap: 9px; padding: 6px 12px; border-radius: 7px; background: var(--tint); line-height: 1.3; }
 .say.warn { background: var(--warn-tint); color: var(--warn); font-weight: 500; }
 .say .num { font-variant-numeric: tabular-nums; white-space: nowrap; }
-.plotwrap { position: relative; aspect-ratio: 602 / 628; margin-inline: auto; max-width: 100%; width: max(min(100%, 360px), min(100%, calc((100dvh - 285px) * 0.9586))); }
+.plotwrap { position: relative; aspect-ratio: 602 / 628; margin-inline: auto; max-width: 100%; width: max(min(100%, 360px), min(100%, calc((100dvh - 325px) * 0.9586))); }
 #cv { position: absolute; left: calc(54 / 602 * 100%); top: calc(8 / 628 * 100%); width: calc(525 / 602 * 100%); height: calc(552 / 628 * 100%); display: block; }
 svg#plot { position: absolute; inset: 0; display: block; width: 100%; height: 100%; touch-action: pan-y; user-select: none; -webkit-user-select: none; }
 svg#plot[data-tool="add"] { touch-action: none; cursor: crosshair; }
@@ -146,6 +146,48 @@ code { font: 400 12.5px/1.45 var(--code); }
 .tn.leaf text { fill: var(--plot); font-weight: 600; }
 .te { stroke: var(--muted); stroke-width: 1.3; fill: none; }
 .te.on { stroke: var(--ink); stroke-width: 2.4; }
+.tn { cursor: pointer; }
+.tn:focus { outline: none; }
+.tn.hov rect, .tn:focus-visible rect { stroke: var(--ink); stroke-width: 2.8; }
+.veil { fill: var(--paper); opacity: .66; fill-rule: evenodd; pointer-events: none; }
+.nodebox { fill: none; stroke: var(--ink); stroke-width: 2.6; pointer-events: none; }
+/* Folha da posição sob o mouse (árvore): preenchimento leve, para aparecer mesmo quando o contorno coincide com a fronteira */
+.leafhl { fill: var(--ink); fill-opacity: .1; stroke: var(--ink); stroke-width: 1.6; stroke-dasharray: 6 4; pointer-events: none; }
+/* Linha dos dados: ruído, conjunto de teste e fronteira de Bayes */
+.datarow { display: flex; flex-wrap: wrap; gap: 4px 18px; align-items: center; }
+.datarow .ctl { flex: 1 1 220px; max-width: 400px; }
+.chk { display: inline-flex; align-items: center; gap: 7px; cursor: pointer; white-space: nowrap; min-height: 30px; }
+.chk input { margin: 0; width: 16px; height: 16px; accent-color: var(--ink); }
+.chk svg { display: block; flex: none; }
+.chk.off { opacity: .55; cursor: default; }
+#layer-test { pointer-events: none; }
+.tpt circle { fill: var(--plot); stroke-width: 2.4; }
+.tpt.b circle { stroke: var(--blue); } .tpt.p circle { stroke: var(--pink); } .tpt.o circle { stroke: var(--orange); } .tpt.g circle { stroke: var(--green); }
+.tpt path { stroke: var(--ink); stroke-width: 1.8; stroke-linecap: round; }
+.bayes { stroke: var(--ink); stroke-width: 2.2; stroke-dasharray: 9 6; opacity: .8; }
+/* Desempates: bloco recolhido no painel */
+details.ties summary { cursor: pointer; font: 500 11.5px/1.2 var(--ui); letter-spacing: .07em; text-transform: uppercase; color: var(--muted); padding: 4px 0; }
+details.ties summary:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.ties dl { margin: 6px 0 0; font-size: 13.5px; line-height: 1.4; }
+.ties dt { font-weight: 600; margin-top: 6px; }
+.ties dd { margin: 2px 0 0; }
+/* Matriz de confusão no teste (Tabela 4.4) e medidas da Tabela 4.7 */
+.conf { border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: 13.5px; margin: 2px 0 6px; }
+.conf th, .conf td { padding: 3px 9px; text-align: right; border-bottom: 1px solid var(--rule); }
+.conf thead th { font: 500 12px/1.2 var(--ui); color: var(--muted); }
+.conf tbody th { text-align: left; font-weight: 500; }
+.conf td.dg { background: var(--tint); font-weight: 600; }
+.conf tbody tr:last-child th, .conf tbody tr:last-child td, .conf td.tot { color: var(--muted); }
+.conf tbody tr:last-child th, .conf tbody tr:last-child td { border-bottom: 0; }
+.metr { border-collapse: collapse; width: 100%; font-size: 13.5px; margin-top: 6px; }
+.metr th { text-align: left; font-weight: 500; padding: 4px 6px 4px 0; vertical-align: top; }
+.metr th small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; }
+.metr td { text-align: right; padding: 4px 0 4px 6px; vertical-align: top; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.metr td.def { text-align: left; color: var(--muted); font-family: var(--math); }
+.metr td small { display: block; color: var(--muted); font-size: 12px; }
+.metr thead th { font: 500 12px/1.2 var(--ui); color: var(--muted); text-align: right; }
+.metr thead th:first-child { text-align: left; }
+#posseg button { font-size: 13px; padding: 6px 10px; min-height: 30px; }
 @media (max-width: 900px) {
   .app { grid-template-columns: minmax(0, 1fr); grid-template-areas: "head" "main" "side"; }
   .plotwrap { width: 100%; }
@@ -189,9 +231,11 @@ code { font: 400 12.5px/1.45 var(--code); }
             <option value="duasig">Dados: duas nuvens, mesma covariância (como na Fig. 4.9, à esquerda)</option>
             <option value="duasdif">Dados: duas nuvens, covariâncias diferentes (como na Fig. 4.9, à direita)</option>
             <option value="overlap">Dados: nuvens muito sobrepostas</option>
+            <option value="mix2">Dados: mistura de gaussianas (como na Fig. 2.13)</option>
             <option value="unbal">Dados: classes desbalanceadas</option>
           </optgroup>
           <optgroup label="Três ou mais classes">
+            <option value="mix3">Dados: mistura de gaussianas, três classes</option>
             <option value="tresig">Dados: três nuvens, mesma covariância (como na Fig. 4.6)</option>
             <option value="tresdif">Dados: três nuvens, covariâncias diferentes</option>
             <option value="bands">Dados: três faixas diagonais</option>
@@ -201,6 +245,11 @@ code { font: 400 12.5px/1.45 var(--code); }
         </select>
         <button id="reset">Restaurar dados</button>
       </div>
+    </div>
+    <div class="datarow">
+      <div class="ctl"><label class="word" for="p-noise-n">Ruído <span class="math"><i>σ</i></span></label><input id="p-noise-n" type="number" min="0" max="1" step="0.05" inputmode="decimal"><input id="p-noise" type="range" min="0" max="1" step="0.05" aria-label="Ruído sigma somado aos pontos"></div>
+      <label class="chk" for="o-test" id="c-test"><input type="checkbox" id="o-test"><svg width="14" height="14" aria-hidden="true"><circle cx="7" cy="7" r="5" fill="none" stroke="currentColor" stroke-width="2"></circle></svg>Conjunto de teste</label>
+      <label class="chk" for="o-bayes" id="c-bayes" hidden><input type="checkbox" id="o-bayes"><svg width="26" height="14" aria-hidden="true"><line x1="0" y1="7" x2="26" y2="7" stroke="currentColor" stroke-width="2" stroke-dasharray="7 4"></line></svg>Fronteira de Bayes</label>
     </div>
 
     <div class="params"><div class="seg" role="group" aria-label="Probabilidades a priori" id="priors">
@@ -216,13 +265,16 @@ code { font: 400 12.5px/1.45 var(--code); }
         <defs><clipPath id="clip"><rect id="cliprect"></rect></clipPath></defs>
         <g clip-path="url(#clip)">
           <g id="layer-extra"></g>
+          <path id="bayes" class="curve bayes"></path>
           <path id="ghost" class="curve ghost"></path>
           <path id="hyper" class="curve hyper"></path>
           <path id="highlight" class="curve hl"></path>
           <circle id="probe-c" class="probe" style="display:none"></circle>
+          <path id="probe-p" class="probe" style="display:none"></path>
         </g>
         <rect class="frame" id="frame"></rect>
         <g id="axes"></g>
+        <g id="layer-test"></g>
         <g id="layer-points"></g>
       </svg>
     </div>
@@ -235,6 +287,7 @@ code { font: 400 12.5px/1.45 var(--code); }
         <div class="bigM" id="v-title" style="font-size:1.25rem"></div>
         <span id="pill" class="pill"></span>
       </div>
+      <p class="note" id="v-data"></p>
       <div id="v-table" style="margin-top:8px"></div>
       <p class="note" id="v-tabnote"></p>
     </section>
@@ -255,6 +308,20 @@ code { font: 400 12.5px/1.45 var(--code); }
         <label for="o-reg"><input type="checkbox" id="o-reg" data-show="reg" checked>
           <svg width="30" height="14" aria-hidden="true"><g fill="var(--blue-dot)"><circle cx="3" cy="3" r="1.3"></circle><circle cx="9" cy="3" r="1.3"></circle><circle cx="3" cy="11" r="1.3"></circle><circle cx="9" cy="11" r="1.3"></circle></g><g fill="var(--pink-dot)"><circle cx="21" cy="3" r="1.3"></circle><circle cx="27" cy="3" r="1.3"></circle><circle cx="21" cy="11" r="1.3"></circle><circle cx="27" cy="11" r="1.3"></circle></g></svg>Regiões de decisão</label>
       </div>
+    </section>
+
+    <section>
+      <details class="ties">
+        <summary>Desempates</summary>
+        <dl>
+          <dt>Este app</dt>
+          <dd>Probabilidades empatadas só acontecem em cima da fronteira, um conjunto de área zero; ali vence a menor classe (azul antes de roxo, roxo antes de laranja…).</dd>
+          <dt>scikit-learn</dt>
+          <dd>O mesmo: <code>predict</code> usa <code>argmax</code>, que fica com a primeira das classes ordenadas.</dd>
+          <dt>R, <code>MASS::qda</code></dt>
+          <dd><code>predict</code> usa <code>max.col</code>, que <b>sorteia</b> entre as classes cujas probabilidades diferem menos de 10<sup>−5</sup> (relativo). Perto da fronteira, rodar duas vezes pode dar classes diferentes.</dd>
+        </dl>
+      </details>
     </section>
 
     <section>
@@ -415,6 +482,7 @@ const App = {
     return m;
   },
   draw: Discr.draw, clear: Discr.clear, sayPoint: Discr.sayPoint, probe: Discr.probe,
+  predict: (m, x, y) => Solver.argmax(m, x, y),
   hint: () => 'Cada classe tem a sua Σ̂ₖ: as elipses mudam de forma e as fronteiras viram curvas quadráticas (retas só em casos especiais).',
   panel(m, api) {
     const { $, num, state, chip } = api;
@@ -454,27 +522,43 @@ const App = {
   // Nuvem gaussiana com centro (a, b) e fator L da covariância
   const C2 = 2; // rótulo da segunda classe (no app de SVM é −1)
   const cloud = (r, n, a, b, [l11, l21, l22], c, pts) => { for (let i = 0; i < n; i++) { const z1 = r.g(), z2 = r.g(); pts.push({ x: a + l11*z1, y: b + l21*z1 + l22*z2, c }); } };
+  // Mistura de gaussianas, como na Fig. 2.13: cada classe tem 10 médias, sorteadas uma vez e fixas;
+  // cada ponto escolhe uma delas ao acaso e soma N(0, s²I). A densidade é conhecida, o que dá a fronteira e o erro de Bayes.
+  const MIX = {
+    mix2: { seed: 211, n: 30, s: .36, centers: [[CX + .5, CY - .45], [CX - .5, CY + .45]] },
+    mix3: { seed: 223, n: 20, s: .3, sd: .6, centers: [[CX - .9, CY - .55], [CX + .9, CY - .55], [CX, CY + .85]] },
+  };
+  for (const M of Object.values(MIX)) { const r = rng(M.seed), sd = M.sd || .8; M.means = M.centers.map(([a, b]) => Array.from({ length: 10 }, () => [a + sd*r.g(), b + sd*r.g()])); }
+  const mixture = M => (s = 0) => {
+    const r = rng(M.seed + 1 + s), pts = [];
+    M.means.forEach((ms, k) => { for (let i = 0; i < M.n; i++) { const m = ms[Math.floor(r.u()*10)]; pts.push({ x: m[0] + M.s*r.g(), y: m[1] + M.s*r.g(), c: k === 1 ? C2 : k + 1 }); } });
+    return pts;
+  };
+  // Cada gerador recebe s: s = 0 dá os dados de sempre; s = TESTE, outra amostra da mesma distribuição (o conjunto de teste).
+  const TESTE = 1000;
   const DATA = {
+    mix2: mixture(MIX.mix2),
+    mix3: mixture(MIX.mix3),
     // Os cinco primeiros são os mesmos do app de SVM (azul = +1 lá, classe 1 aqui; roxo = −1 lá, classe 2 aqui).
-    ring() {
-      const r = rng(11), pts = [];
+    ring(s = 0) {
+      const r = rng(11 + s), pts = [];
       for (let i = 0; i < 18; i++) { const t = 2*Math.PI*(i + .4*r.u())/18, R = 2.05 + .2*r.g(); pts.push({ x: CX + R*Math.cos(t), y: CY + R*Math.sin(t), c: 1 }); }
       for (let i = 0; i < 14; i++) pts.push({ x: CX + .48*r.g(), y: CY + .48*r.g(), c: 2 });
       return pts;
     },
-    parab() {
-      const r = rng(23), pts = [];
+    parab(s = 0) {
+      const r = rng(23 + s), pts = [];
       for (let i = 0; i < 16; i++) { const x = X0 + .4 + i*(PW/S - .8)/15; const h = .45*(x-CX)*(x-CX) + .3; pts.push({ x, y: h + .35 + .9*r.u(), c: 1 }); }
       for (let i = 0; i < 16; i++) { const x = X0 + .4 + i*(PW/S - .8)/15 + .1*r.g(); const h = .45*(x-CX)*(x-CX) + .3; pts.push({ x, y: h - .35 - .9*r.u(), c: 2 }); }
       return pts;
     },
-    xor() {
-      const r = rng(37), pts = [], d = 1.28;
+    xor(s = 0) {
+      const r = rng(37 + s), pts = [], d = 1.28;
       for (const [sx, sy, c] of [[1,1,1],[-1,-1,1],[1,-1,2],[-1,1,2]]) for (let i = 0; i < 8; i++) pts.push({ x: CX + sx*d + .36*r.g(), y: CY + sy*d + .36*r.g(), c });
       return pts;
     },
-    moons() {
-      const r = rng(53), pts = [], n = 16, R = 1.55;
+    moons(s = 0) {
+      const r = rng(53 + s), pts = [], n = 16, R = 1.55;
       for (let i = 0; i < n; i++) {
         const t = Math.PI*i/(n-1);
         pts.push({ x: CX - .75 + R*Math.cos(t) + .1*r.g(), y: CY - .1 + R*Math.sin(t) + .1*r.g(), c: 1 });
@@ -488,8 +572,8 @@ const App = {
       return [...B.map(([x, y]) => ({ x, y, c: 1 })), ...P.map(([x, y]) => ({ x, y, c: 2 }))];
     },
     // Duas espirais entrelaçadas
-    spiral() {
-      const r = rng(131), pts = [];
+    spiral(s = 0) {
+      const r = rng(131 + s), pts = [];
       for (const [c, off] of [[1, 0], [C2, Math.PI]]) for (let i = 0; i < 20; i++) {
         const t = 0.12 + 0.88*i/19, R = 0.3 + 2.05*t, a = 2.6*Math.PI*t + off;
         pts.push({ x: CX + R*Math.cos(a) + .06*r.g(), y: CY + R*Math.sin(a) + .06*r.g(), c });
@@ -497,29 +581,29 @@ const App = {
       return pts;
     },
     // Tabuleiro 3 × 3: classes alternadas, bom para árvores e ruim para fronteiras lineares
-    board() {
-      const r = rng(137), pts = [], s = 1.6;
+    board(s = 0) {
+      const r = rng(137 + s), pts = [], w = 1.6;
       for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) for (let k = 0; k < 4; k++)
-        pts.push({ x: CX - 1.5*s + (i + .12 + .76*r.u())*s, y: CY - 1.5*s + (j + .12 + .76*r.u())*s, c: (i + j) % 2 ? C2 : 1 });
+        pts.push({ x: CX - 1.5*w + (i + .12 + .76*r.u())*w, y: CY - 1.5*w + (j + .12 + .76*r.u())*w, c: (i + j) % 2 ? C2 : 1 });
       return pts;
     },
     // Duas nuvens quase em cima uma da outra: K pequeno no KNN e árvores fundas se ajustam demais
-    overlap() {
-      const r = rng(139), pts = [];
+    overlap(s = 0) {
+      const r = rng(139 + s), pts = [];
       for (let i = 0; i < 25; i++) pts.push({ x: CX - .4 + .8*r.g(), y: CY + .4 + .8*r.g(), c: 1 });
       for (let i = 0; i < 25; i++) pts.push({ x: CX + .4 + .8*r.g(), y: CY - .4 + .8*r.g(), c: C2 });
       return pts;
     },
     // 30 contra 6: as priors estimadas empurram a fronteira para o lado da classe rara
-    unbal() {
-      const r = rng(149), pts = [];
+    unbal(s = 0) {
+      const r = rng(149 + s), pts = [];
       for (let i = 0; i < 30; i++) pts.push({ x: CX - .55 + .7*r.g(), y: CY + .45 + .7*r.g(), c: 1 });
       for (let i = 0; i < 6; i++) pts.push({ x: CX + .85 + .45*r.g(), y: CY - .65 + .45*r.g(), c: C2 });
       return pts;
     },
     // Três faixas diagonais: a fronteira certa é oblíqua, e as árvores precisam de escadinhas
-    bands() {
-      const r = rng(151), pts = [];
+    bands(s = 0) {
+      const r = rng(151 + s), pts = [];
       while (pts.length < 45) {
         const a = 2.3*(2*r.u() - 1), b = 2.3*(2*r.u() - 1);
         if (a*a + b*b > 2.3*2.3) continue;
@@ -530,8 +614,8 @@ const App = {
       return pts;
     },
     // Alvo: três classes concêntricas (centro, anel do meio, anel de fora)
-    target() {
-      const r = rng(157), pts = [];
+    target(s = 0) {
+      const r = rng(157 + s), pts = [];
       for (let i = 0; i < 12; i++) pts.push({ x: CX + .3*r.g(), y: CY + .3*r.g(), c: 1 });
       for (const [c, R, n] of [[2, 1.25, 16], [3, 2.2, 22]]) for (let i = 0; i < n; i++) {
         const t = 2*Math.PI*(i + .5*r.u())/n, q = R + .12*r.g();
@@ -539,50 +623,57 @@ const App = {
       }
       return pts;
     },
-    corr() {
-      const r = rng(71), pts = [], L = [.72, .66, .22];
+    corr(s = 0) {
+      const r = rng(71 + s), pts = [], L = [.72, .66, .22];
       cloud(r, 16, CX - .42, CY + .42, L, 1, pts);
       cloud(r, 16, CX + .42, CY - .42, L, 2, pts);
       return pts;
     },
     // Como na Fig. 4.9: correlação 0,7 nas duas classes (esquerda) ou 0,7 e −0,7 (direita)
-    duasig() {
-      const r = rng(113), pts = [], L = [.62, .434, .443];
+    duasig(s = 0) {
+      const r = rng(113 + s), pts = [], L = [.62, .434, .443];
       cloud(r, 20, CX - .5, CY + .55, L, 1, pts);
       cloud(r, 20, CX + .5, CY - .55, L, 2, pts);
       return pts;
     },
-    duasdif() {
-      const r = rng(127), pts = [];
+    duasdif(s = 0) {
+      const r = rng(127 + s), pts = [];
       cloud(r, 20, CX - .45, CY + .35, [.62, .434, .443], 1, pts);
       cloud(r, 20, CX + .45, CY - .35, [.62, -.434, .443], 2, pts);
       return pts;
     },
-    tresig() {
-      const r = rng(83), pts = [], L = [.46, .18, .36];
+    tresig(s = 0) {
+      const r = rng(83 + s), pts = [], L = [.46, .18, .36];
       cloud(r, 14, CX - 1.35, CY - .8, L, 1, pts);
       cloud(r, 14, CX + 1.35, CY - .8, L, 2, pts);
       cloud(r, 14, CX, CY + 1.35, L, 3, pts);
       return pts;
     },
-    tresdif() {
-      const r = rng(97), pts = [];
+    tresdif(s = 0) {
+      const r = rng(97 + s), pts = [];
       cloud(r, 14, CX - 1.25, CY - .9, [.3, 0, .75], 1, pts);
       cloud(r, 14, CX + 1.2, CY - .75, [.78, .45, .22], 2, pts);
       cloud(r, 14, CX + .1, CY + 1.45, [.65, -.3, .3], 3, pts);
       return pts;
     },
-    quad() {
-      const r = rng(109), pts = [], d = 1.25;
+    quad(s = 0) {
+      const r = rng(109 + s), pts = [], d = 1.25;
       for (const [sx, sy, c] of [[1,1,1],[-1,1,2],[-1,-1,3],[1,-1,4]]) for (let i = 0; i < 9; i++) pts.push({ x: CX + sx*d + .4*r.g(), y: CY + sy*d + .4*r.g(), c });
       return pts;
     },
   };
-  const loadData = name => DATA[name]().map(bound);
+  const FIXOS = new Set(['figure']); // pontos fixos: não há outra amostra para servir de teste
+  const hash = t => [...t].reduce((h, ch) => Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0, 2166136261);
+  // Ruído σ: cada ponto anda σ·zᵢ, com zᵢ ~ N(0, I) fixo por ponto; aumentar σ mistura as classes aos poucos. σ = 0 dá os dados de sempre.
+  function loadData(name, sigma = 0, s = 0) {
+    const pts = DATA[name](s);
+    if (sigma > 0) { const r = rng(hash(name) + s); for (const p of pts) { p.x += sigma*r.g(); p.y += sigma*r.g(); } }
+    return pts.map(bound);
+  }
   const countK = pts => pts.reduce((m, p) => Math.max(m, p.c), 1);
 
   const start = loadData(App.dataset);
-  const state = { points: start, dataset: App.dataset, K: countK(start), tool: 'move', addClass: 1, sel: -1, drag: -1, model: null, flash: '', ghostD: '', ghostShown: false, probe: null, show: { reg: true }, P: Object.assign({}, App.params) };
+  const state = { points: start, test: [], dataset: App.dataset, K: countK(start), tool: 'move', addClass: 1, sel: -1, drag: -1, model: null, flash: '', ghostD: '', ghostShown: false, probe: null, show: { reg: true, test: false, bayes: false }, sigma: 0, edited: false, testErr: 0, P: Object.assign({}, App.params) };
   for (const inp of document.querySelectorAll('input[data-show]')) state.show[inp.dataset.show] = inp.checked;
   $('dataset').value = App.dataset;
 
@@ -624,9 +715,11 @@ const App = {
   const labels = new Uint8Array(NX*NY).fill(255);
 
   // Curvas de nível por marching squares, com os segmentos ligados em polilinhas. tFn (opcional) devolve a posição do cruzamento numa aresta.
-  function contour(F, level, tFn) {
+  // drawn (opcional, compartilhado entre chamadas) pula segmentos já desenhados: cada fronteira entre duas classes sai uma vez só, e o tracejado não se embaralha.
+  function contour(F, level, tFn, drawn) {
     const adj = new Map(), pos = new Map();
     const link = (a, b) => {
+      if (drawn) { const k = a < b ? a + ',' + b : b + ',' + a; if (drawn.has(k)) return; drawn.add(k); }
       if (!adj.has(a)) adj.set(a, []);
       if (!adj.has(b)) adj.set(b, []);
       adj.get(a).push(b); adj.get(b).push(a);
@@ -736,6 +829,147 @@ const App = {
     for (let k = 1; k <= 4; k++) $('t-add' + k).hidden = k > state.K;
   }
 
+  /* ---------- conjunto de teste: outra amostra do mesmo gerador, fora do ajuste ---------- */
+  let tnodes = [];
+  function buildTest() {
+    const g = $('layer-test');
+    g.textContent = '';
+    tnodes = state.test.map(p => {
+      const n = el('g', 'tpt ' + CLS[p.c].css, g);
+      n.setAttribute('data-c', p.c);
+      attrs(el('circle', '', n), { cx: px(p.x), cy: py(p.y), r: 5.2 });
+      return { n, x: el('path', '', n) };
+    });
+  }
+  function refreshTest() {
+    state.test = state.show.test && !FIXOS.has(state.dataset) ? loadData(state.dataset, state.sigma, TESTE) : [];
+    buildTest();
+  }
+
+  /* ---------- Bayes: só nas misturas, cuja densidade é conhecida ---------- */
+  // Com o ruído σ, cada componente vira N(m, (s² + σ²)I). As classes têm o mesmo n, então as priors são iguais.
+  let bayes = null;
+  function bayesModel() {
+    const M = MIX[state.dataset];
+    if (!M) return null;
+    const v = M.s*M.s + state.sigma*state.sigma, K = M.means.length;
+    const logp = (x, y, out) => {
+      for (let k = 0; k < K; k++) {
+        let mx = -Infinity;
+        const e = M.means[k].map(m => { const a = x - m[0], b = y - m[1], t = -(a*a + b*b)/(2*v); if (t > mx) mx = t; return t; });
+        let s = 0; for (const t of e) s += Math.exp(t - mx);
+        out[k] = mx + Math.log(s);
+      }
+      return out;
+    };
+    // Erro de Bayes, E[1 − maxₖ Pr(Y = k | X)], por Monte Carlo com semente fixa (20 000 sorteios: erro-padrão < 0,3 ponto percentual).
+    const r = rng(M.seed + 77), out = new Float64Array(K), N = 20000, sd = Math.sqrt(v);
+    let err = 0;
+    for (let i = 0; i < N; i++) {
+      const m = M.means[i % K][Math.floor(r.u()*10)];
+      logp(m[0] + sd*r.g(), m[1] + sd*r.g(), out);
+      let mx = -Infinity, s = 0;
+      for (const t of out) if (t > mx) mx = t;
+      for (const t of out) s += Math.exp(t - mx);
+      err += 1 - 1/s;
+    }
+    // Fronteira: nível 0 de log fₐ − maxₖ≠ₐ log fₖ, como nos gerativos
+    const F = Array.from({ length: K }, () => new Float64Array(NX*NY)), G = new Float64Array(NX*NY);
+    for (let j = 0, q = 0; j < NY; j++) for (let i = 0; i < NX; i++, q++) { logp(X0 + i*HX, Y0 + j*HY, out); for (let k = 0; k < K; k++) F[k][q] = out[k]; }
+    let d = '';
+    const drawn = new Set();
+    for (let a = 0; a < (K === 2 ? 1 : K); a++) {
+      for (let q = 0; q < G.length; q++) { let o = -Infinity; for (let k = 0; k < K; k++) if (k !== a && F[k][q] > o) o = F[k][q]; G[q] = F[a][q] - o; }
+      d += contour(G, 0, null, drawn);
+    }
+    return { err: err/N, d };
+  }
+  function refreshBayes() {
+    bayes = bayesModel();
+    $('c-bayes').hidden = !bayes;
+    $('bayes').setAttribute('d', bayes && state.show.bayes ? bayes.d : '');
+  }
+  function dataLine(m) {
+    const cnt = new Array(state.K + 1).fill(0), n = state.points.length;
+    for (const p of state.points) cnt[p.c]++;
+    const pct = (a, b) => `<span class="num">${num(100*a/b, 1)}%</span>`;
+    let s = `<i>n</i> = ${n}: ` + cnt.slice(1).map((v, k) => `${chip(k+1)}<span class="num">${v}</span><span class="sr"> ${v === 1 ? CLS[k+1].nome : CLS[k+1].pl}</span>`).join(' ');
+    const parts = [];
+    if (m.ok && m.pred) parts.push(`erro de treino ${pct(trainingErrors(m), n)}`);
+    if (state.test.length) parts.push(`de teste ${m.ok ? pct(state.testErr, state.test.length) : '—'} (<i>m</i> = ${state.test.length})`);
+    else if (state.show.test && FIXOS.has(state.dataset)) parts.push('sem conjunto de teste: estes pontos são fixos');
+    if (bayes) parts.push(`de Bayes ≈ ${pct(bayes.err, 1)}`);
+    if (parts.length) s += '<br>' + parts.join(' · ').replace(/^de /, 'erro de ');
+    $('v-data').innerHTML = s;
+  }
+
+  // Classes da matriz de confusão: 1…K, com as cores da lista
+  const CONF = { classes: () => Array.from({ length: state.K }, (_, k) => k + 1), css: c => CLS[c].css, nome: c => CLS[c].nome };
+
+  /* ---------- matriz de confusão no teste (Tabela 4.4) e medidas da Tabela 4.7 ---------- */
+  // Só aparece com o conjunto de teste ligado. Linhas: classe prevista; colunas: a verdadeira, como no livro.
+  const confSec = document.createElement('section');
+  confSec.id = 's-conf';
+  confSec.hidden = true;
+  confSec.innerHTML = '<p class="lab">Matriz de confusão no teste, como na Tabela 4.4</p><div id="v-conf"></div><div class="seg" role="group" aria-label="Classe positiva" id="posseg"></div><div id="v-metr"></div><p class="note" id="v-confnote"></p>';
+  $('v-data').closest('section').after(confSec);
+  state.pos = CONF.classes()[0];
+  function confusion(ok) {
+    const T = state.test;
+    confSec.hidden = !T.length;
+    if (!T.length) return;
+    const cl = CONF.classes(), K = cl.length, ix = new Map(cl.map((c, j) => [c, j])), m = T.length;
+    const ch = c => `<span class="chip ${CONF.css(c)}"></span><span class="sr">${CONF.nome(c)}</span>`;
+    const ps = $('posseg');
+    if (!ok) { $('v-conf').innerHTML = '<p class="note">Sem classificador ajustado, não há previsões para comparar.</p>'; $('v-metr').innerHTML = ''; $('v-confnote').innerHTML = ''; ps.hidden = true; return; }
+    const M = cl.map(() => new Array(K).fill(0));
+    T.forEach((p, i) => { const a = ix.get(state.testPred[i]), b = ix.get(p.c); if (a !== undefined && b !== undefined) M[a][b]++; });
+    const lin = M.map(r => r.reduce((s, v) => s + v, 0)), col = cl.map((_, j) => M.reduce((s, r) => s + r[j], 0));
+    let h = `<table class="conf"><caption class="sr">Matriz de confusão no conjunto de teste: linhas com a classe prevista, colunas com a verdadeira</caption><thead><tr><th scope="col" rowspan="2">Previsto</th><th scope="colgroup" colspan="${K}">Verdadeiro</th><th scope="col" rowspan="2">Total</th></tr><tr>${cl.map(c => `<th scope="col">${ch(c)}</th>`).join('')}</tr></thead><tbody>`;
+    cl.forEach((c, a) => { h += `<tr><th scope="row">${ch(c)}</th>${M[a].map((v, b) => `<td${a === b ? ' class="dg"' : ''}>${v}</td>`).join('')}<td class="tot">${lin[a]}</td></tr>`; });
+    h += `<tr><th scope="row">Total</th>${col.map(v => `<td>${v}</td>`).join('')}<td>${m}</td></tr></tbody></table>`;
+    $('v-conf').innerHTML = h;
+    const val = (a, b) => b ? `${num(100*a/b, 1)}%<small>${a}/${b}</small>` : '—<small>sem casos</small>';
+    const certos = cl.reduce((s, _, j) => s + M[j][j], 0);
+    const erro = val(m - certos, m);
+    let r;
+    ps.hidden = K !== 2;
+    if (K === 2) {
+      if (!ix.has(state.pos)) state.pos = cl[0];
+      ps.innerHTML = cl.map(c => `<button data-c="${c}" aria-pressed="${c === state.pos}"><span class="chip ${CONF.css(c)}"></span>+ = ${CONF.nome(c)}</button>`).join('');
+      const p = ix.get(state.pos), q = 1 - p, TP = M[p][p], FN = M[q][p], FP = M[p][q], TN = M[q][q];
+      const P = TP + FN, N = FP + TN, Pe = TP + FP, Ne = TN + FN;
+      r = `<tr><th scope="row">Taxa de erro</th><td class="def">(FP + FN)/(N + P)</td><td>${erro}</td></tr>`
+        + `<tr><th scope="row">Taxa de falsos positivos<small>erro tipo I, 1 − especificidade</small></th><td class="def">FP/N</td><td>${val(FP, N)}</td></tr>`
+        + `<tr><th scope="row">Taxa de verdadeiros positivos<small>sensibilidade, recall, poder</small></th><td class="def">TP/P</td><td>${val(TP, P)}</td></tr>`
+        + `<tr><th scope="row">Valor preditivo positivo<small>precisão</small></th><td class="def">TP/P*</td><td>${val(TP, Pe)}</td></tr>`
+        + `<tr><th scope="row">Valor preditivo negativo</th><td class="def">TN/N*</td><td>${val(TN, Ne)}</td></tr>`
+        + `<tr><th scope="row">F1<small>média harmônica de precisão e sensibilidade (fora do livro)</small></th><td class="def">2TP/(2TP + FP + FN)</td><td>${val(2*TP, 2*TP + FP + FN)}</td></tr>`;
+      $('v-metr').innerHTML = `<table class="metr"><caption class="sr">Medidas da Tabela 4.7 no conjunto de teste</caption><thead><tr><th scope="col">Medida</th><th scope="col"><span class="sr">Definição</span></th><th scope="col"><span class="sr">Valor</span></th></tr></thead><tbody>${r}</tbody></table>`;
+      $('v-confnote').innerHTML = `As quatro medidas depois da taxa de erro são as da Tabela 4.7; o F1 não está no livro. Positivo (+) é a classe ${CONF.nome(state.pos)}; como na Tabela 4.6, P e N são os totais verdadeiros de + e −; P* e N*, os totais previstos. No Python, <code>f1_score(y_teste, previsto, pos_label=…)</code>.`;
+    } else {
+      ps.innerHTML = '';
+      // Por classe, contra as outras: TP = M[j][j], FN = resto da coluna, FP = resto da linha. F1 = 2TP/(2TP + FP + FN).
+      const pc = (a, b) => b ? `${num(100*a/b, 1)}%` : '—';
+      const rec = cl.map((_, j) => col[j] ? M[j][j]/col[j] : 0), pre = cl.map((_, j) => lin[j] ? M[j][j]/lin[j] : 0);
+      const f1d = cl.map((_, j) => col[j] + lin[j]), f1 = cl.map((_, j) => f1d[j] ? 2*M[j][j]/f1d[j] : 0);
+      const media = v => v.reduce((s, x) => s + x, 0)/K, semPrev = lin.some(v => v === 0);
+      r = `<tr><th scope="row">Taxa de erro</th><td colspan="3">${erro}</td></tr>`
+        + cl.map((c, j) => `<tr><th scope="row">${ch(c)} contra as outras</th><td>${pc(M[j][j], col[j])}</td><td>${lin[j] ? pc(M[j][j], lin[j]) : '—<small>sem previsões</small>'}</td><td>${pc(2*M[j][j], f1d[j])}</td></tr>`).join('')
+        + `<tr><th scope="row">Média macro<small>cada classe pesa igual</small></th><td>${num(100*media(rec), 1)}%</td><td>${num(100*media(pre), 1)}%</td><td>${num(100*media(f1), 1)}%</td></tr>`
+        + `<tr><th scope="row">Média micro<small>= 1 − taxa de erro</small></th><td>${pc(certos, m)}</td><td>${pc(certos, m)}</td><td>${pc(certos, m)}</td></tr>`;
+      $('v-metr').innerHTML = `<table class="metr"><caption class="sr">Sensibilidade, precisão e F1 de cada classe no conjunto de teste, com as médias macro e micro</caption><thead><tr><th scope="col">Medida</th><th scope="col">Sens.</th><th scope="col">Precisão</th><th scope="col">F1</th></tr></thead><tbody>${r}</tbody></table>`;
+      $('v-confnote').innerHTML = `Com ${K} classes, o livro não define essas medidas, nem o F1: cada classe faz o papel de + contra as outras juntas (sensibilidade: acertos sobre o total verdadeiro da classe; precisão: acertos sobre o total previsto; F1 = 2TP/(2TP + FP + FN), a média harmônica das duas). A média macro é a média simples das classes, e por isso não esconde uma classe pequena mal classificada. A micro soma TP, FP e FN de todas as classes; com um rótulo por ponto, sensibilidade, precisão e F1 micro são todas iguais à acurácia, 1 − taxa de erro.${semPrev ? ' Uma classe sem previsões tem precisão indefinida; na média macro ela entra como 0, como no scikit-learn.' : ''} No Python, <code>classification_report(y_teste, previsto)</code> mostra tudo isso (com o verdadeiro primeiro).`;
+    }
+    $('v-confnote').innerHTML += ' Em R, <code>table(previsto, y_teste)</code> e, no Python, <code>confusion_table(previsto, y_teste)</code> do ISLP dão esta orientação; o <code>confusion_matrix</code> do scikit-learn põe a classe verdadeira nas linhas.';
+  }
+  $('posseg').addEventListener('click', ev => {
+    const b = ev.target.closest('button');
+    if (!b) return;
+    state.pos = Number(b.dataset.c);
+    render();
+  });
+
   /* ---------- API para o código de cada classificador ---------- */
   const api = { state, $, el, attrs, num, three, coord, chip, CLS, NX, NY, HX, HY, X0, X1, Y0, Y1, px, py, labels, contour, render: (o) => render(o), extra: $('layer-extra') };
 
@@ -764,6 +998,15 @@ const App = {
       else nd.cross.style.display = 'none';
       nd.n.setAttribute('aria-label', `Ponto ${CLS[p.c].nome} em ${coord(p)}${wrong ? ', classificado errado' : ''}`);
     });
+    state.testErr = 0;
+    state.testPred = state.test.map(p => m.ok ? App.predict(m, p.x, p.y, api) + 1 : null);
+    state.test.forEach((p, i) => {
+      const wrong = m.ok && state.testPred[i] !== p.c, x = px(p.x), y = py(p.y), c = 3.4;
+      if (wrong) state.testErr++;
+      tnodes[i].x.setAttribute('d', wrong ? `M${x-c} ${y-c}L${x+c} ${y+c}M${x+c} ${y-c}L${x-c} ${y+c}` : '');
+    });
+    dataLine(m);
+    confusion(m.ok);
     if (App.panel) App.panel(m, api);
     const code = App.code(m, api);
     $('code-r').textContent = code.r;
@@ -780,6 +1023,8 @@ const App = {
     say.className = 'say';
     if (s.warn) { say.className = 'say warn'; say.textContent = s.warn; return; }
     if (state.flash) { say.textContent = state.flash; return; }
+    const extra = App.narrate && s.ok ? App.narrate(s, api) : ''; // ex.: o nó da árvore sob o cursor
+    if (extra) { say.innerHTML = extra; return; }
     const i = state.drag >= 0 ? state.drag : state.sel;
     if (i >= 0 && pts[i]) {
       say.innerHTML = `${chip(pts[i].c)}<span>${App.sayPoint(s, i, api)}${state.ghostShown ? ' A linha cinza é a fronteira antes do arraste.' : ''}</span>`;
@@ -833,7 +1078,7 @@ const App = {
       return;
     }
     state.points.splice(i, 1);
-    state.sel = -1; state.flash = '';
+    state.sel = -1; state.flash = ''; state.edited = true;
     buildPoints();
     if (App.dataChanged) App.dataChanged(api);
     render();
@@ -845,6 +1090,7 @@ const App = {
     else if (state.tool === 'remove' && i >= 0) { ev.preventDefault(); removePoint(i); }
     else if (state.tool === 'add' && inPlot(d)) {
       state.points.push({ x: clampX(d.x), y: clampY(d.y), c: state.addClass });
+      state.edited = true;
       buildPoints();
       if (App.dataChanged) App.dataChanged(api);
       startDrag(state.points.length - 1, ev);
@@ -863,7 +1109,7 @@ const App = {
     }
     const d = toData(ev), p = state.points[state.drag];
     p.x = clampX(d.x); p.y = clampY(d.y);
-    state.flash = '';
+    state.flash = ''; state.edited = true;
     render();
   });
   const endDrag = () => {
@@ -890,7 +1136,7 @@ const App = {
     const dir = { ArrowLeft: [-1,0], ArrowRight: [1,0], ArrowUp: [0,1], ArrowDown: [0,-1] }[ev.key];
     if (dir) {
       p.x = clampX(p.x + dir[0]*step); p.y = clampY(p.y + dir[1]*step);
-      state.sel = i; state.flash = '';
+      state.sel = i; state.flash = ''; state.edited = true;
       ev.preventDefault();
       render();
     } else if (ev.key === 'Delete' || ev.key === 'Backspace') {
@@ -913,11 +1159,15 @@ const App = {
     state.sel = -1; state.flash = '';
     render();
   }));
-  function setData(name) {
+  function setData(name, flash = '') {
     state.dataset = name;
-    state.points = loadData(name);
+    state.points = loadData(name, state.sigma);
     state.K = countK(state.points);
-    state.sel = -1; state.drag = -1; state.ghostD = null; state.flash = ''; state.probe = null;
+    state.sel = -1; state.drag = -1; state.ghostD = null; state.flash = flash; state.probe = null; state.edited = false;
+    $('o-test').disabled = FIXOS.has(name);
+    $('c-test').classList.toggle('off', FIXOS.has(name));
+    refreshTest();
+    refreshBayes();
     if (state.addClass > state.K) {
       state.addClass = 1; state.tool = 'move'; svg.setAttribute('data-tool', 'move');
       toolButtons.forEach(o => o.setAttribute('aria-pressed', String(o.id === 't-move')));
@@ -928,6 +1178,24 @@ const App = {
   }
   $('dataset').addEventListener('change', e => setData(e.target.value));
   $('reset').addEventListener('click', () => setData(state.dataset));
+  // Ruído: sorteia de novo a partir do gerador (edições à mão se perdem, e a narração avisa)
+  const setNoise = v => {
+    if (v === state.sigma) return;
+    const edited = state.edited;
+    state.sigma = v;
+    setData(state.dataset, `Ruído σ = ${num(v)}: pontos sorteados de novo${edited ? '; as edições feitas à mão foram descartadas' : ''}.`);
+    if (document.activeElement !== $('p-noise-n')) $('p-noise-n').value = v;
+    if (document.activeElement !== $('p-noise')) $('p-noise').value = v;
+  };
+  $('p-noise').addEventListener('input', e => setNoise(Number(e.target.value)));
+  $('p-noise-n').addEventListener('input', e => { const v = parseFloat(String(e.target.value).replace(',', '.')); if (Number.isFinite(v) && v >= 0 && v <= 1) setNoise(v); });
+  $('p-noise-n').addEventListener('blur', () => { $('p-noise-n').value = state.sigma; });
+  $('p-noise').value = $('p-noise-n').value = 0;
+  $('o-test').checked = $('o-bayes').checked = false; // o navegador pode restaurar caixas marcadas ao recarregar
+  $('o-test').addEventListener('change', e => { state.show.test = e.target.checked; refreshTest(); render(); });
+  $('o-bayes').addEventListener('change', e => { state.show.bayes = e.target.checked; refreshBayes(); render(); });
+  // O n de cada conjunto aparece na própria lista
+  for (const o of $('dataset').options) o.textContent += ` · n = ${DATA[o.value]().length}`;
   const copy = (btn, id) => $(btn).addEventListener('click', () => {
     const text = $(id).textContent, b = $(btn);
     const done = () => { b.textContent = 'Copiado'; setTimeout(() => { b.textContent = 'Copiar'; }, 1400); };
@@ -952,6 +1220,9 @@ const App = {
   readColors();
   drawAxes();
   buildPoints();
+  $('o-test').disabled = FIXOS.has(state.dataset);
+  $('c-test').classList.toggle('off', FIXOS.has(state.dataset));
+  refreshBayes();
   computeAndDraw();
 })();
 </script>
